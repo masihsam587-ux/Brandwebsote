@@ -1,0 +1,240 @@
+import type {
+  Category,
+  FeedbackThread,
+  InstallmentPlan,
+  NotificationItem,
+  Order,
+  Product,
+  User,
+} from './types';
+
+export const SEED_CATEGORIES: Category[] = [
+  {
+    id: 'cat-womens-unstitched',
+    name: "Women's Unstitched",
+    slug: 'womens-unstitched',
+    description: '3-piece and 2-piece unstitched embroidered lawn, cotton, and chiffon suits.',
+    image: '/src/assets/images/womens_unstitched_suit_1795333234539.jpg',
+  },
+  {
+    id: 'cat-boys-trousers',
+    name: "Boys' Trousers",
+    slug: 'boys-trousers',
+    description: 'Comfortable slim-fit cotton chinos, cargo pants, and everyday trousers for boys.',
+    image: '/src/assets/images/boys_trousers_collection_1795333233867.jpg',
+  },
+  {
+    id: 'cat-jackets',
+    name: 'Jackets',
+    slug: 'jackets',
+    description: 'Warm bomber, fleece-lined, and seasonal casual jackets.',
+    image: '/src/assets/images/winter_casual_jacket_1795333234968.jpg',
+  },
+  {
+    id: 'cat-hoodies',
+    name: 'Hoodies',
+    slug: 'hoodies',
+    description: 'Soft brushed-fleece pullover and everyday hoodies.',
+    image: '/src/assets/images/fleece_hoodie_studio_1795333235567.jpg',
+  },
+  {
+    id: 'cat-shirts',
+    name: 'Shirts',
+    slug: 'shirts',
+    description: 'Cotton Oxford and casual button-down shirts for daily and formal wear.',
+    image: '/src/assets/images/cotton_dress_shirt_1795333237089.jpg',
+  },
+  {
+    id: 'cat-tshirts',
+    name: 'T-Shirts',
+    slug: 't-shirts',
+    description: 'Breathable combed cotton crew-neck and everyday t-shirts.',
+    image: '/src/assets/images/combed_cotton_tshirt_1795333235825.jpg',
+  },
+  {
+    id: 'cat-accessories',
+    name: 'Accessories',
+    slug: 'accessories',
+    description: 'Watches, scarves, bags, and everyday wardrobe accessories.',
+    image: '/src/assets/images/product_chronograph_watch_1795274847788.jpg',
+  },
+];
+
+export const SEED_PRODUCTS: Product[] = [
+  {
+    id: 'prod-1',
+    slug: 'womens-embroidered-unstitched-suit',
+    title: "Women's 3-Piece Unstitched Embroidered Suit",
+    description:
+      'Breathable sage cotton-lawn unstitched shirt fabric with floral embroidery, dyed trouser fabric, and matching printed dupatta.',
+    price: 6800,
+    costPrice: 3900,
+    categoryId: 'cat-womens-unstitched',
+    categoryName: "Women's Unstitched",
+    coverImage: '/src/assets/images/womens_unstitched_suit_1795333234539.jpg',
+    extraImages: ['/src/assets/images/product_cashmere_scarf_1795274847842.jpg'],
+    sizes: ['3-Piece Unstitched'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-21T09:00:00.000Z',
+  },
+  {
+    id: 'prod-2',
+    slug: 'boys-slim-cotton-trousers',
+    title: "Boys' Stretch Cotton Chino Trousers",
+    description:
+      'Durable cotton twill trousers for boys with reinforced stitching, side pockets, and adjustable waist comfort for school and outings.',
+    price: 3400,
+    costPrice: 1850,
+    categoryId: 'cat-boys-trousers',
+    categoryName: "Boys' Trousers",
+    coverImage: '/src/assets/images/boys_trousers_collection_1795333233867.jpg',
+    extraImages: [],
+    sizes: ['26', '28', '30', '32'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-20T10:30:00.000Z',
+  },
+  {
+    id: 'prod-3',
+    slug: 'olive-bomber-winter-jacket',
+    title: 'Everyday Olive Bomber Jacket',
+    description:
+      'Clean-cut zip-up casual jacket with ribbed collar and cuffs, smooth interior lining, and deep welt pockets for cool evenings.',
+    price: 9500,
+    costPrice: 5400,
+    categoryId: 'cat-jackets',
+    categoryName: 'Jackets',
+    coverImage: '/src/assets/images/winter_casual_jacket_1795333234968.jpg',
+    extraImages: [],
+    sizes: ['S', 'M', 'L', 'XL'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-19T12:00:00.000Z',
+  },
+  {
+    id: 'prod-4',
+    slug: 'sand-fleece-pullover-hoodie',
+    title: 'Heavyweight Fleece Pullover Hoodie',
+    description:
+      'Warm brushed-cotton fleece hoodie with contrast ribbed trim, lined hood, and soft relaxed fit for everyday winter wear.',
+    price: 5200,
+    costPrice: 2800,
+    categoryId: 'cat-hoodies',
+    categoryName: 'Hoodies',
+    coverImage: '/src/assets/images/fleece_hoodie_studio_1795333235567.jpg',
+    extraImages: [],
+    sizes: ['S', 'M', 'L', 'XL'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-18T14:15:00.000Z',
+  },
+  {
+    id: 'prod-5',
+    slug: 'striped-oxford-button-shirt',
+    title: 'Classic Striped Cotton Oxford Shirt',
+    description:
+      'Crisp yarn-dyed cotton button-down shirt with button collar and tailored cuffs, easy to pair with trousers or jeans.',
+    price: 4200,
+    costPrice: 2250,
+    categoryId: 'cat-shirts',
+    categoryName: 'Shirts',
+    coverImage: '/src/assets/images/cotton_dress_shirt_1795333237089.jpg',
+    extraImages: [],
+    sizes: ['S', 'M', 'L', 'XL'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-17T11:00:00.000Z',
+  },
+  {
+    id: 'prod-6',
+    slug: 'essential-cotton-crew-tshirt',
+    title: 'Combed Cotton Crew-Neck T-Shirt',
+    description:
+      'Breathable 220gsm combed cotton crew-neck tee in a clean regular fit that holds its neckline wash after wash.',
+    price: 2100,
+    costPrice: 1050,
+    categoryId: 'cat-tshirts',
+    categoryName: 'T-Shirts',
+    coverImage: '/src/assets/images/combed_cotton_tshirt_1795333235825.jpg',
+    extraImages: [],
+    sizes: ['S', 'M', 'L', 'XL'],
+    inStock: true,
+    featured: true,
+    createdAt: '2026-11-16T16:45:00.000Z',
+  },
+  {
+    id: 'prod-7',
+    slug: 'classic-steel-leather-watch',
+    title: 'Classic Brushed Steel Wristwatch',
+    description:
+      'Everyday 39mm stainless steel dial watch with cognac leather strap, ideal for casual and formal outfits.',
+    price: 7800,
+    costPrice: 4100,
+    categoryId: 'cat-accessories',
+    categoryName: 'Accessories',
+    coverImage: '/src/assets/images/product_chronograph_watch_1795274847788.jpg',
+    extraImages: ['/src/assets/images/product_leather_weekender_1795274847466.jpg'],
+    sizes: ['One Size'],
+    inStock: true,
+    featured: false,
+    createdAt: '2026-11-15T10:00:00.000Z',
+  },
+  {
+    id: 'prod-8',
+    slug: 'winter-shawl-eyewear-accessory-set',
+    title: 'Winter Scarf & Sunglasses Accessory Set',
+    description:
+      'Soft woven winter scarf paired with classic everyday sunglasses for complete seasonal styling.',
+    price: 4600,
+    costPrice: 2400,
+    categoryId: 'cat-accessories',
+    categoryName: 'Accessories',
+    coverImage: '/src/assets/images/product_cashmere_scarf_1795274847842.jpg',
+    extraImages: ['/src/assets/images/product_chronograph_watch_1795274847788.jpg'],
+    sizes: ['One Size'],
+    inStock: true,
+    featured: false,
+    createdAt: '2026-11-14T09:30:00.000Z',
+  },
+];
+
+export const SEED_INSTALLMENT_PLANS: InstallmentPlan[] = [
+  { id: 'plan-2m', label: '2 Months', months: 2, advancePercent: 0, markupPercent: 15, active: true },
+  { id: 'plan-3m', label: '3 Months', months: 3, advancePercent: 0, markupPercent: 25, active: true },
+  { id: 'plan-4m', label: '4 Months', months: 4, advancePercent: 0, markupPercent: 40, active: true },
+];
+
+export const DEFAULT_TERMS_POLICY = {
+  effectiveLabel: 'Peshawar, Pakistan · Effective 2026',
+  title: 'Terms of Service & Installment Rules',
+  sections: [
+    {
+      id: 'sec-1',
+      heading: '1. Business Identity & Pricing',
+      body: "Cinematic Arts (CA) operates out of Peshawar, Khyber Pakhtunkhwa, Pakistan, selling women's unstitched clothes, boys' trousers, jackets, hoodies, shirts, t-shirts, and accessories. All retail prices, interest calculations, and installment schedules are denominated exclusively in Pakistani Rupees (PKR).",
+    },
+    {
+      id: 'sec-2',
+      heading: '2. Cash on Delivery & Return Policy',
+      body: 'Cash on Delivery (COD) orders are available across major Pakistani cities without a referral code. Unworn garments and uncut unstitched fabrics with original tags may be exchanged for sizing or quality issues within 7 calendar days of delivery.',
+    },
+    {
+      id: 'sec-3',
+      heading: '3. PKR Installment Financing Terms',
+      body: 'Installment orders are offered on 2-month (15% interest), 3-month (25% interest), and 4-month (40% interest) plans and require an active, verified CA Seller Referral ID at checkout. Orders remain Pending until verified by CA administration, and monthly installments are tracked in the customer Orders ledger.',
+    },
+    {
+      id: 'sec-4',
+      heading: '4. Seller Referral Commission Rules',
+      body: 'Registered sellers receive a unique referral code (format CA-XXXXXX). Active sellers earn a 10% commission on the total value of each referred order once the order status reaches Complete. Cancelled or rejected orders do not accrue commission.',
+    },
+  ],
+  footerNote: 'Questions? Email masihsam587@gmail.com or call 03355329722.',
+  updatedAt: '2026-11-22T00:00:00.000Z',
+};
+
+export const SEED_USERS: User[] = [];
+export const SEED_ORDERS: Order[] = [];
+export const SEED_NOTIFICATIONS: NotificationItem[] = [];
+export const SEED_FEEDBACK: FeedbackThread[] = [];

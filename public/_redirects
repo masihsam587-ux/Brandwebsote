@@ -1,0 +1,5 @@
+# Cinematic Arts (CA) static hosting redirects & 404 fallback (Netlify / Cloudflare Pages)
+# Add 301 product slug redirects here when renaming live URLs, or update src/services/slugRedirects.ts:
+# /product/old-product-slug  /product/new-product-slug  301
+
+/*  /404.html  404

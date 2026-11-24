@@ -1,0 +1,6 @@
+{
+  "name": "Cinematic Arts (CA)",
+  "description": "Cinematic Arts (CA) — Minimalist luxury clothing and accessories atelier in Peshawar, Pakistan, offering Cash on Delivery and flexible PKR installment plans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
