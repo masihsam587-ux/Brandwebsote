@@ -191,6 +191,7 @@ test('getRouteSeoConfig enforces index/noindex, char limits, and bilingual route
   assert.equal(getRouteSeoConfig('/profile').noIndex, true);
   assert.equal(getRouteSeoConfig('/auth').noIndex, true);
   assert.equal(getRouteSeoConfig('/admin').noIndex, true);
+  assert.equal(getRouteSeoConfig('/status').noIndex, true);
   assert.equal(getRouteSeoConfig('/missing-route').noIndex, true);
 });
 

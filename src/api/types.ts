@@ -320,8 +320,13 @@ export interface AdminService {
   replyFeedbackThread(adminToken: string, threadId: string, body: string): Promise<FeedbackThread>;
   listAdminProducts(adminToken: string): Promise<Product[]>;
   saveProduct(adminToken: string, product: Partial<Product> & { title: string; price: number; categoryId: string }): Promise<Product>;
-  deleteProduct(adminToken: string, productId: string): Promise<void>;
+  deleteProduct(adminToken: string, productId: string): Promise<{ outcome?: 'deleted' | 'archived' } | void>;
   saveCategory(adminToken: string, category: Partial<Category> & { name: string }): Promise<Category>;
+  deleteCategory(
+    adminToken: string,
+    categoryId: string,
+    options?: { cascadeProducts?: boolean }
+  ): Promise<{ deletedProductIds?: string[] } | void>;
   saveInstallmentPlans(adminToken: string, plans: InstallmentPlan[]): Promise<InstallmentPlan[]>;
   saveTermsPolicy(adminToken: string, doc: Omit<TermsPolicyDocument, 'updatedAt'>): Promise<TermsPolicyDocument>;
 }

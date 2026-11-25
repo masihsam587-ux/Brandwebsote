@@ -821,9 +821,14 @@ export const mockAdapter: BackendApi = {
 
     async deleteProduct(adminToken: string, productId: string) {
       assertAdminTokenFormat(adminToken);
+      const cleanId = String(productId || '').trim();
+      if (!cleanId) throw new Error('Product ID is required.');
       const state = loadState();
-      state.products = state.products.filter((p) => p.id !== productId);
+      const exists = state.products.some((p) => p.id === cleanId);
+      if (!exists) throw new Error('Product not found.');
+      state.products = state.products.filter((p) => p.id !== cleanId);
       saveState(state);
+      return { outcome: 'deleted' as const };
     },
 
     async saveCategory(adminToken: string, category) {
@@ -840,6 +845,35 @@ export const mockAdapter: BackendApi = {
       state.categories.push(created);
       saveState(state);
       return created;
+    },
+
+    async deleteCategory(
+      adminToken: string,
+      categoryId: string,
+      options?: { cascadeProducts?: boolean }
+    ) {
+      assertAdminTokenFormat(adminToken);
+      const cleanId = String(categoryId || '').trim();
+      if (!cleanId) throw new Error('Category ID is required.');
+      const state = loadState();
+      const target = state.categories.find((c) => c.id === cleanId);
+      if (!target) throw new Error('Category not found.');
+
+      const linkedProducts = state.products.filter((p) => p.categoryId === cleanId);
+      if (linkedProducts.length > 0 && !options?.cascadeProducts) {
+        throw new Error(
+          `Category "${target.name}" still has ${linkedProducts.length} product(s). Delete or reassign them first, or confirm deleting them together.`
+        );
+      }
+
+      const deletedProductIds = linkedProducts.map((p) => p.id);
+      if (deletedProductIds.length > 0) {
+        const removeSet = new Set(deletedProductIds);
+        state.products = state.products.filter((p) => !removeSet.has(p.id));
+      }
+      state.categories = state.categories.filter((c) => c.id !== cleanId);
+      saveState(state);
+      return { deletedProductIds };
     },
 
     async saveInstallmentPlans(adminToken: string, plans) {

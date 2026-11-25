@@ -547,7 +547,7 @@ async function startServer() {
 
   // ==================== PUBLIC CATALOG & REFERRAL ====================
   app.get('/api/products', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId.slice(0, 80) : '';
     const search =
       typeof req.query.search === 'string' ? req.query.search.slice(0, 80).toLowerCase().trim() : '';
@@ -581,7 +581,7 @@ async function startServer() {
   });
 
   app.get('/api/products/:slug', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     const slug = String(req.params.slug || '');
     if (
       slug.length > 120 ||
@@ -603,17 +603,17 @@ async function startServer() {
   });
 
   app.get('/api/categories', (_req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.json(store.categories);
   });
 
   app.get('/api/installment-plans', (_req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.json(store.plans.filter((p) => p.active));
   });
 
   app.get('/api/terms', (_req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     res.json(store.termsPolicy);
   });
 
@@ -1338,9 +1338,19 @@ async function startServer() {
   });
 
   app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
-    store.products = store.products.filter((p) => p.id !== req.params.id);
+    const cleanId = sanitizeText(String(req.params.id || ''), 120);
+    if (!cleanId) {
+      res.status(400).json({ error: 'Product ID is required.' });
+      return;
+    }
+    const existingIdx = store.products.findIndex((p) => p.id === cleanId);
+    if (existingIdx === -1) {
+      res.status(404).json({ error: 'Product not found.' });
+      return;
+    }
+    store.products.splice(existingIdx, 1);
     invalidateSeoSnapshot();
-    res.json({ ok: true });
+    res.json({ ok: true, outcome: 'deleted' });
   });
 
   app.post('/api/admin/categories', requireAdmin, (req, res) => {
@@ -1360,6 +1370,36 @@ async function startServer() {
     store.categories.push(created);
     invalidateSeoSnapshot();
     res.status(201).json(created);
+  });
+
+  app.delete('/api/admin/categories/:id', requireAdmin, (req, res) => {
+    const cleanId = sanitizeText(String(req.params.id || ''), 120);
+    if (!cleanId) {
+      res.status(400).json({ error: 'Category ID is required.' });
+      return;
+    }
+    const catIdx = store.categories.findIndex((c) => c.id === cleanId);
+    if (catIdx === -1) {
+      res.status(404).json({ error: 'Category not found.' });
+      return;
+    }
+    const category = store.categories[catIdx];
+    const linkedProducts = store.products.filter((p) => p.categoryId === cleanId);
+    const cascade = req.query.cascade === 'true' || req.body?.cascadeProducts === true;
+    if (linkedProducts.length > 0 && !cascade) {
+      res.status(409).json({
+        error: `Category "${category.name}" still has ${linkedProducts.length} product(s). Delete or reassign them first, or confirm removing them together.`,
+      });
+      return;
+    }
+    const deletedProductIds = linkedProducts.map((p) => p.id);
+    if (deletedProductIds.length > 0) {
+      const removeSet = new Set(deletedProductIds);
+      store.products = store.products.filter((p) => !removeSet.has(p.id));
+    }
+    store.categories.splice(catIdx, 1);
+    invalidateSeoSnapshot();
+    res.json({ ok: true, deletedProductIds });
   });
 
   app.put('/api/admin/installment-plans', requireAdmin, (req, res) => {

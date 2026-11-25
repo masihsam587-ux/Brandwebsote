@@ -48,6 +48,9 @@ const AdminPage = lazy(() =>
 const AdminModal = lazy(() =>
   import('./components/AdminModal').then((m) => ({ default: m.AdminModal }))
 );
+const StatusPage = lazy(() =>
+  import('./pages/StatusPage').then((m) => ({ default: m.StatusPage }))
+);
 
 function PrivateRouteFallback() {
   return (
@@ -145,6 +148,7 @@ export function AppShell({ queryClient = defaultQueryClient }: AppShellProps) {
         <Route path={p('/profile')} element={<PrivateShell><ProfilePage /></PrivateShell>} />
         <Route path={p('/auth')} element={<PrivateShell><AuthPage /></PrivateShell>} />
         <Route path={p('/admin')} element={<PrivateShell><AdminPage /></PrivateShell>} />
+        <Route path={p('/status')} element={<PrivateShell><StatusPage /></PrivateShell>} />
       </>
     );
   };

@@ -1,15 +1,15 @@
-import { A as canTriggerAction, B as DEFAULT_TERMS_POLICY, D as productService, E as orderService, F as sanitizePlainText, H as useToast, L as calculateInstallmentPlan, N as isValidAdminHash, V as ToastProvider, W as queryClient, b as useAuth, c as checkoutSchema, i as triggerTapRipple, j as createIdempotencyKey, l as extractZodFieldErrors, m as persistedCartItemSchema, n as CALoadingOverlay, r as CAProcessButton, t as CALoader, v as urlSlugSchema, y as AuthProvider, z as formatPKR } from "./assets/CALoader-DTLq4Do2.js";
+import { S as useToast, T as captureAppException, b as useAuth, c as checkoutSchema, i as triggerTapRipple, l as extractZodFieldErrors, m as persistedCartItemSchema, n as CALoadingOverlay, r as CAProcessButton, t as CALoader, v as urlSlugSchema, w as queryClient, x as ToastProvider, y as AuthProvider } from "./assets/CALoader-DYHlE_Xc.js";
+import { A as subscribeGlobalError, C as DEFAULT_TERMS_POLICY, E as getGlobalErrorSnapshot, O as normalizeAppError, S as formatPKR, T as createErrorReferenceId, _ as sanitizePlainText, f as canTriggerAction, h as isValidAdminHash, j as triggerGlobalErrorRetry, o as orderService, p as createIdempotencyKey, s as productService, w as clearGlobalError, x as deriveProductStockStatus, y as calculateInstallmentPlan } from "./assets/api-CtuVoLbu.js";
 import { renderToString } from "react-dom/server";
 import { StaticRouter } from "react-router";
-import { QueryClient, QueryClientProvider, dehydrate, useQuery } from "@tanstack/react-query";
-import { Component, Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { QueryClient, QueryClientProvider, dehydrate, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Component, Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Fragment, jsxDEV } from "react/jsx-dev-runtime";
-import { AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, Calculator, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock, CreditCard, Globe, Heart, Home, Mail, MapPin, MessageCircle, Minus, Moon, Package, PackageCheck, Phone, Plus, RefreshCw, Ruler, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Sun, Truck, User, WifiOff, X } from "lucide-react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, Calculator, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock, Copy, CreditCard, Globe, Heart, Home, Mail, MapPin, MessageCircle, Minus, Moon, Package, PackageCheck, Phone, Plus, RefreshCw, Ruler, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Sun, Truck, User, WifiOff, X } from "lucide-react";
 import { z } from "zod";
 import { AnimatePresence, motion } from "motion/react";
 // src/context/ThemeContext.tsx
-var _jsxFileName$23 = "/app/applet/src/context/ThemeContext.tsx";
 var ThemeContext = createContext(null);
 function ThemeProvider({ children }) {
 	const [theme, setThemeState] = useState("light");
@@ -29,18 +29,14 @@ function ThemeProvider({ children }) {
 	}, [theme]);
 	const setTheme = (next) => setThemeState(next);
 	const toggleTheme = () => setThemeState((prev) => prev === "light" ? "dark" : "light");
-	return /* @__PURE__ */ jsxDEV(ThemeContext.Provider, {
+	return /* @__PURE__ */ jsx(ThemeContext.Provider, {
 		value: {
 			theme,
 			toggleTheme,
 			setTheme
 		},
 		children
-	}, void 0, false, {
-		fileName: _jsxFileName$23,
-		lineNumber: 45,
-		columnNumber: 5
-	}, this);
+	});
 }
 function useTheme() {
 	const ctx = useContext(ThemeContext);
@@ -48,7 +44,6 @@ function useTheme() {
 	return ctx;
 }
 // src/context/CartContext.tsx
-var _jsxFileName$22 = "/app/applet/src/context/CartContext.tsx";
 var CART_KEY = "ca_cart_v1";
 var WISHLIST_KEY = "ca_wishlist_v1";
 var CartContext = createContext(null);
@@ -137,7 +132,7 @@ function CartProvider({ children }) {
 	const closeBuySheet = () => setCheckoutModalProduct(null);
 	const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
 	const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
-	return /* @__PURE__ */ jsxDEV(CartContext.Provider, {
+	return /* @__PURE__ */ jsx(CartContext.Provider, {
 		value: {
 			items,
 			totalItems,
@@ -154,11 +149,7 @@ function CartProvider({ children }) {
 			closeBuySheet
 		},
 		children
-	}, void 0, false, {
-		fileName: _jsxFileName$22,
-		lineNumber: 170,
-		columnNumber: 5
-	}, this);
+	});
 }
 function useCart() {
 	const ctx = useContext(CartContext);
@@ -166,80 +157,95 @@ function useCart() {
 	return ctx;
 }
 // src/components/ErrorBoundary.tsx
-var _jsxFileName$21 = "/app/applet/src/components/ErrorBoundary.tsx";
 var ErrorBoundary = class extends Component {
 	constructor(..._args) {
 		super(..._args);
-		this.state = { hasError: false };
+		this.state = {
+			hasError: false,
+			referenceId: null,
+			title: "Something went wrong",
+			message: "An unexpected interruption occurred while rendering this view. Please retry or return to the storefront."
+		};
+		this.handleRetry = () => {
+			this.setState({
+				hasError: false,
+				referenceId: null,
+				title: "Something went wrong",
+				message: "An unexpected interruption occurred while rendering this view. Please retry or return to the storefront."
+			});
+		};
 		this.handleReload = () => {
-			this.setState({ hasError: false });
+			this.setState({
+				hasError: false,
+				referenceId: null,
+				title: "Something went wrong",
+				message: "An unexpected interruption occurred while rendering this view. Please retry or return to the storefront."
+			});
 			window.location.assign("/");
 		};
 	}
-	static getDerivedStateFromError() {
-		return { hasError: true };
+	static getDerivedStateFromError(error) {
+		const normalized = normalizeAppError(error, { fallbackMessage: "An unexpected interruption occurred while rendering this view. Please retry or return to the storefront." });
+		return {
+			hasError: true,
+			referenceId: normalized.referenceId,
+			title: normalized.title,
+			message: normalized.message
+		};
 	}
-	componentDidCatch() {}
+	componentDidCatch(error) {
+		const normalized = normalizeAppError(error);
+		captureAppException(error, {
+			referenceId: this.state.referenceId || normalized.referenceId,
+			kind: normalized.kind,
+			status: normalized.status,
+			source: "ErrorBoundary"
+		});
+	}
 	render() {
-		if (this.state.hasError) return /* @__PURE__ */ jsxDEV("div", {
+		if (this.state.hasError) return /* @__PURE__ */ jsx("div", {
+			role: "alert",
 			className: "flex min-h-screen items-center justify-center bg-[var(--ca-bg)] px-6 py-16",
-			children: /* @__PURE__ */ jsxDEV("div", {
+			children: /* @__PURE__ */ jsxs("div", {
 				className: "glass-panel max-w-md rounded-2xl p-8 text-center",
 				children: [
-					/* @__PURE__ */ jsxDEV("p", {
+					/* @__PURE__ */ jsx("p", {
 						className: "text-xs font-medium text-[var(--ca-text-muted)]",
 						children: "Cinematic Arts"
-					}, void 0, false, {
-						fileName: _jsxFileName$21,
-						lineNumber: 29,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("h1", {
+					}),
+					/* @__PURE__ */ jsx("h1", {
 						className: "font-display mt-3 text-3xl font-semibold text-[var(--ca-text)]",
-						children: "Something went wrong"
-					}, void 0, false, {
-						fileName: _jsxFileName$21,
-						lineNumber: 32,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("p", {
+						children: this.state.title
+					}),
+					/* @__PURE__ */ jsx("p", {
 						className: "mt-3 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-						children: "An unexpected interruption occurred while rendering this view. Please return to the storefront and try again."
-					}, void 0, false, {
-						fileName: _jsxFileName$21,
-						lineNumber: 35,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("button", {
-						type: "button",
-						onClick: this.handleReload,
-						className: "btn-press mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-medium text-[var(--ca-bg)]",
-						children: [/* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-4 w-4" }, void 0, false, {
-							fileName: _jsxFileName$21,
-							lineNumber: 43,
-							columnNumber: 15
-						}, this), "Return to Storefront"]
-					}, void 0, true, {
-						fileName: _jsxFileName$21,
-						lineNumber: 38,
-						columnNumber: 13
-					}, this)
+						children: this.state.message
+					}),
+					this.state.referenceId && /* @__PURE__ */ jsxs("p", {
+						className: "font-mono-nums mt-4 inline-block rounded-lg bg-[var(--ca-surface-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--ca-text)]",
+						children: ["Reference ID: ", this.state.referenceId]
+					}),
+					/* @__PURE__ */ jsxs("div", {
+						className: "mt-6 flex flex-wrap justify-center gap-3",
+						children: [/* @__PURE__ */ jsxs("button", {
+							type: "button",
+							onClick: this.handleRetry,
+							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-medium text-[var(--ca-bg)]",
+							children: [/* @__PURE__ */ jsx(RefreshCw, { className: "h-4 w-4" }), "Try Again"]
+						}), /* @__PURE__ */ jsxs("button", {
+							type: "button",
+							onClick: this.handleReload,
+							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--ca-border)] px-5 py-2.5 text-sm font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
+							children: [/* @__PURE__ */ jsx(Home, { className: "h-4 w-4" }), "Return to Storefront"]
+						})]
+					})
 				]
-			}, void 0, true, {
-				fileName: _jsxFileName$21,
-				lineNumber: 28,
-				columnNumber: 11
-			}, this)
-		}, void 0, false, {
-			fileName: _jsxFileName$21,
-			lineNumber: 27,
-			columnNumber: 9
-		}, this);
+			})
+		});
 		return this.props.children;
 	}
 };
 // src/components/IntroSplash.tsx
-var _jsxFileName$20 = "/app/applet/src/components/IntroSplash.tsx";
 var BRAND_TITLE = "Cinematic Arts";
 function IntroSplash() {
 	const [reducedMotion, setReducedMotion] = useState(false);
@@ -253,7 +259,7 @@ function IntroSplash() {
 		const timer = window.setTimeout(() => setVisible(false), duration);
 		return () => window.clearTimeout(timer);
 	}, []);
-	return /* @__PURE__ */ jsxDEV(AnimatePresence, { children: visible && /* @__PURE__ */ jsxDEV(motion.div, {
+	return /* @__PURE__ */ jsx(AnimatePresence, { children: visible && /* @__PURE__ */ jsxs(motion.div, {
 		initial: {
 			opacity: 1,
 			y: 0
@@ -277,18 +283,14 @@ function IntroSplash() {
 		className: "fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#0c0d0f] px-6 text-[#f4f4f5]",
 		"aria-label": "Cinematic Arts intro",
 		children: [
-			!reducedMotion && /* @__PURE__ */ jsxDEV("div", {
+			!reducedMotion && /* @__PURE__ */ jsx("div", {
 				"aria-hidden": "true",
 				className: "ca-intro-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-amber-200/10 to-transparent"
-			}, void 0, false, {
-				fileName: _jsxFileName$20,
-				lineNumber: 44,
-				columnNumber: 13
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+			}),
+			/* @__PURE__ */ jsxs("div", {
 				className: "relative text-center",
 				children: [
-					/* @__PURE__ */ jsxDEV(motion.div, {
+					/* @__PURE__ */ jsx(motion.div, {
 						initial: reducedMotion ? { opacity: 0 } : {
 							opacity: 0,
 							scale: .9
@@ -307,49 +309,25 @@ function IntroSplash() {
 							]
 						},
 						className: "mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-400/25 bg-white/[0.04] backdrop-blur-xl shadow-2xl",
-						children: /* @__PURE__ */ jsxDEV("span", {
+						children: /* @__PURE__ */ jsx("span", {
 							className: "font-display text-4xl font-semibold tracking-wider text-[#d98a2b]",
 							children: "CA"
-						}, void 0, false, {
-							fileName: _jsxFileName$20,
-							lineNumber: 57,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$20,
-						lineNumber: 51,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("h2", {
+						})
+					}),
+					/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-3xl font-medium tracking-wide sm:text-5xl",
 						"aria-label": BRAND_TITLE,
-						children: reducedMotion ? /* @__PURE__ */ jsxDEV("span", { children: BRAND_TITLE }, void 0, false, {
-							fileName: _jsxFileName$20,
-							lineNumber: 67,
-							columnNumber: 17
-						}, this) : BRAND_TITLE.split("").map((ch, idx) => /* @__PURE__ */ jsxDEV("span", {
+						children: reducedMotion ? /* @__PURE__ */ jsx("span", { children: BRAND_TITLE }) : BRAND_TITLE.split("").map((ch, idx) => /* @__PURE__ */ jsx("span", {
 							style: { animationDelay: `${220 + idx * 42}ms` },
 							className: "ca-intro-letter",
 							children: ch === " " ? "\xA0" : ch
-						}, idx, false, {
-							fileName: _jsxFileName$20,
-							lineNumber: 70,
-							columnNumber: 19
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$20,
-						lineNumber: 62,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", {
+						}, idx))
+					}),
+					/* @__PURE__ */ jsx("div", {
 						"aria-hidden": "true",
 						className: `${reducedMotion ? "opacity-70" : "ca-intro-gold-line"} mx-auto mt-3.5 h-[1.5px] w-36 bg-gradient-to-r from-transparent via-[#d98a2b] to-transparent`
-					}, void 0, false, {
-						fileName: _jsxFileName$20,
-						lineNumber: 82,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV(motion.p, {
+					}),
+					/* @__PURE__ */ jsx(motion.p, {
 						initial: { opacity: 0 },
 						animate: { opacity: 1 },
 						transition: {
@@ -358,37 +336,17 @@ function IntroSplash() {
 						},
 						className: "mt-3 text-xs text-zinc-400",
 						children: "Peshawar, Pakistan"
-					}, void 0, false, {
-						fileName: _jsxFileName$20,
-						lineNumber: 89,
-						columnNumber: 13
-					}, this)
+					})
 				]
-			}, void 0, true, {
-				fileName: _jsxFileName$20,
-				lineNumber: 50,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV("button", {
+			}),
+			/* @__PURE__ */ jsx("button", {
 				type: "button",
 				onClick: () => setVisible(false),
 				className: "btn-press mt-10 min-h-[44px] rounded-xl border border-white/15 px-5 py-2 text-xs font-medium text-zinc-300 hover:border-white/35 hover:text-white",
 				children: "Skip"
-			}, void 0, false, {
-				fileName: _jsxFileName$20,
-				lineNumber: 99,
-				columnNumber: 11
-			}, this)
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$20,
-		lineNumber: 28,
-		columnNumber: 9
-	}, this) }, void 0, false, {
-		fileName: _jsxFileName$20,
-		lineNumber: 26,
-		columnNumber: 5
-	}, this);
+	}) });
 }
 // src/i18n/en.ts
 var enDictionary = {
@@ -484,6 +442,7 @@ var enDictionary = {
 		sizeGuideLink: "Size Guide",
 		quantityLabel: "Quantity",
 		outOfStock: "Out of stock",
+		lowStock: "Low stock",
 		inStock: "In stock",
 		addToBag: "Add to Bag",
 		buyNow: "Buy Now",
@@ -784,6 +743,7 @@ var urDictionary = {
 		sizeGuideLink: "سائز گائیڈ",
 		quantityLabel: "تعداد",
 		outOfStock: "اسٹاک ختم",
+		lowStock: "کم اسٹاک",
 		inStock: "دستیاب ہے",
 		addToBag: "بیگ میں شامل کریں",
 		buyNow: "ابھی خریدیں",
@@ -1048,9 +1008,9 @@ function useLocale() {
 function readEnv(key) {
 	const metaEnv = typeof import.meta !== "undefined" && {
 		"BASE_URL": "/",
-		"DEV": true,
+		"DEV": false,
 		"MODE": "production",
-		"PROD": false,
+		"PROD": true,
 		"SSR": true,
 		"VITE_API_BASE_URL": "",
 		"VITE_BACKEND": "supabase",
@@ -1059,9 +1019,9 @@ function readEnv(key) {
 		"VITE_TURNSTILE_SITE_KEY": ""
 	} ? {
 		"BASE_URL": "/",
-		"DEV": true,
+		"DEV": false,
 		"MODE": "production",
-		"PROD": false,
+		"PROD": true,
 		"SSR": true,
 		"VITE_API_BASE_URL": "",
 		"VITE_BACKEND": "supabase",
@@ -1118,7 +1078,6 @@ var STORE_CONFIG = {
 	}
 };
 // src/components/Layout.tsx
-var _jsxFileName$19 = "/app/applet/src/components/Layout.tsx";
 function Layout({ children, networkError, onRetry }) {
 	const { theme, toggleTheme } = useTheme();
 	const { totalItems } = useCart();
@@ -1126,10 +1085,21 @@ function Layout({ children, networkError, onRetry }) {
 	const { locale, t, localize, alternateHref, basePath } = useLocale();
 	const location = useLocation();
 	const [isOffline, setIsOffline] = useState(false);
+	const [offlineRefId, setOfflineRefId] = useState("");
+	const globalError = useSyncExternalStore(subscribeGlobalError, getGlobalErrorSnapshot, () => null);
 	useEffect(() => {
-		setIsOffline(typeof navigator !== "undefined" ? !navigator.onLine : false);
-		const goOffline = () => setIsOffline(true);
-		const goOnline = () => setIsOffline(false);
+		const initialOffline = typeof navigator !== "undefined" ? !navigator.onLine : false;
+		setIsOffline(initialOffline);
+		if (initialOffline) setOfflineRefId((prev) => prev || createErrorReferenceId("CA"));
+		const goOffline = () => {
+			setIsOffline(true);
+			setOfflineRefId((prev) => prev || createErrorReferenceId("CA"));
+		};
+		const goOnline = () => {
+			setIsOffline(false);
+			setOfflineRefId("");
+			clearGlobalError();
+		};
 		window.addEventListener("offline", goOffline);
 		window.addEventListener("online", goOnline);
 		return () => {
@@ -1152,685 +1122,359 @@ function Layout({ children, networkError, onRetry }) {
 		return () => document.removeEventListener("pointerdown", onPointerDown);
 	}, []);
 	const navLinkClass = ({ isActive }) => `whitespace-nowrap shrink-0 text-sm font-medium transition-colors py-2 min-h-[44px] inline-flex items-center border-b ${isActive ? "border-[var(--ca-accent)] text-[var(--ca-text)]" : "border-transparent text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`;
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		className: "flex min-h-screen flex-col bg-[var(--ca-bg)] text-[var(--ca-text)]",
 		children: [
-			/* @__PURE__ */ jsxDEV("header", {
+			/* @__PURE__ */ jsx("header", {
 				className: "glass-bar pt-safe sticky top-0 z-40 border-b",
-				children: /* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsxs("div", {
 					className: "mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6",
 					children: [
-						/* @__PURE__ */ jsxDEV(Link, {
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/"),
 							className: "font-display inline-flex min-h-[44px] items-center text-xl font-semibold text-[var(--ca-text)] whitespace-nowrap shrink-0 sm:text-2xl",
 							children: t.brand
-						}, void 0, false, {
-							fileName: _jsxFileName$19,
-							lineNumber: 77,
-							columnNumber: 11
-						}, this),
-						/* @__PURE__ */ jsxDEV("nav", {
+						}),
+						/* @__PURE__ */ jsxs("nav", {
 							"aria-label": "Primary Navigation",
 							className: "hidden md:flex items-center gap-7",
 							children: [
-								/* @__PURE__ */ jsxDEV(NavLink, {
+								/* @__PURE__ */ jsx(NavLink, {
 									to: localize("/"),
 									end: true,
 									className: navLinkClass,
 									children: t.nav.home
-								}, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 85,
-									columnNumber: 13
-								}, this),
-								/* @__PURE__ */ jsxDEV(NavLink, {
+								}),
+								/* @__PURE__ */ jsx(NavLink, {
 									to: localize("/shop"),
 									className: navLinkClass,
 									children: t.nav.shop
-								}, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 88,
-									columnNumber: 13
-								}, this),
-								/* @__PURE__ */ jsxDEV(NavLink, {
+								}),
+								/* @__PURE__ */ jsx(NavLink, {
 									to: "/orders",
 									className: navLinkClass,
 									children: t.nav.orders
-								}, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 91,
-									columnNumber: 13
-								}, this),
-								/* @__PURE__ */ jsxDEV(NavLink, {
+								}),
+								/* @__PURE__ */ jsxs(NavLink, {
 									to: "/profile",
 									className: navLinkClass,
 									children: [t.nav.profile, unreadNotifications > 0 ? ` (${unreadNotifications})` : ""]
-								}, void 0, true, {
-									fileName: _jsxFileName$19,
-									lineNumber: 94,
-									columnNumber: 13
-								}, this)
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 84,
-							columnNumber: 11
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "flex items-center gap-2 shrink-0",
-							children: [/* @__PURE__ */ jsxDEV(Link, {
+							children: [/* @__PURE__ */ jsxs(Link, {
 								to: alternateHref,
 								lang: locale === "ur" ? "en" : "ur",
 								hrefLang: locale === "ur" ? "en" : "ur",
 								className: "btn-press inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[var(--ca-surface-subtle)] px-3 py-2 text-xs font-medium text-[var(--ca-text)] hover:opacity-85 whitespace-nowrap",
-								children: [/* @__PURE__ */ jsxDEV(Globe, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 106,
-									columnNumber: 15
-								}, this), /* @__PURE__ */ jsxDEV("span", { children: t.nav.switchLangLabel }, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 107,
-									columnNumber: 15
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 100,
-								columnNumber: 13
-							}, this), /* @__PURE__ */ jsxDEV(Link, {
+								children: [/* @__PURE__ */ jsx(Globe, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: t.nav.switchLangLabel })]
+							}), /* @__PURE__ */ jsxs(Link, {
 								to: totalItems > 0 ? "/orders" : user ? localize("/shop") : "/auth",
 								className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-4 py-2 text-xs font-medium text-[var(--ca-bg)] hover:opacity-90 whitespace-nowrap shrink-0",
-								children: [/* @__PURE__ */ jsxDEV(ShoppingBag, { className: "h-3.5 w-3.5" }, void 0, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 114,
-									columnNumber: 15
-								}, this), totalItems > 0 ? /* @__PURE__ */ jsxDEV("span", {
+								children: [/* @__PURE__ */ jsx(ShoppingBag, { className: "h-3.5 w-3.5" }), totalItems > 0 ? /* @__PURE__ */ jsxs("span", {
 									className: "inline-flex items-center gap-1.5",
-									children: [/* @__PURE__ */ jsxDEV("span", { children: t.nav.bag }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 117,
-										columnNumber: 19
-									}, this), /* @__PURE__ */ jsxDEV("span", {
+									children: [/* @__PURE__ */ jsx("span", { children: t.nav.bag }), /* @__PURE__ */ jsx("span", {
 										className: "ca-badge-pop font-mono-nums inline-flex min-w-[1.25rem] items-center justify-center rounded-md bg-[var(--ca-accent)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--ca-accent-fg)]",
 										children: totalItems
-									}, totalItems, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 118,
-										columnNumber: 19
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$19,
-									lineNumber: 116,
-									columnNumber: 17
-								}, this) : user ? t.nav.browseShop : t.nav.signIn]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 110,
-								columnNumber: 13
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 99,
-							columnNumber: 11
-						}, this)
+									}, totalItems)]
+								}) : user ? t.nav.browseShop : t.nav.signIn]
+							})]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$19,
-					lineNumber: 76,
-					columnNumber: 9
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 75,
-				columnNumber: 7
-			}, this),
-			isOffline && /* @__PURE__ */ jsxDEV("div", {
+				})
+			}),
+			isOffline && /* @__PURE__ */ jsx("div", {
 				role: "status",
-				className: "ca-fade-in border-b border-amber-500/30 bg-amber-500/12 px-4 py-2 text-xs text-amber-800 dark:text-amber-200",
-				children: /* @__PURE__ */ jsxDEV("div", {
-					className: "mx-auto flex max-w-6xl items-center gap-2",
-					children: [/* @__PURE__ */ jsxDEV(WifiOff, { className: "h-4 w-4 shrink-0" }, void 0, false, {
-						fileName: _jsxFileName$19,
-						lineNumber: 142,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("span", { children: "You appear to be offline. Cached catalog items remain visible; live orders require a connection." }, void 0, false, {
-						fileName: _jsxFileName$19,
-						lineNumber: 143,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$19,
-					lineNumber: 141,
-					columnNumber: 11
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 137,
-				columnNumber: 9
-			}, this),
-			networkError && !isOffline && /* @__PURE__ */ jsxDEV("div", {
-				role: "alert",
-				className: "ca-fade-in border-b border-red-500/25 bg-red-500/10 px-4 py-2.5 text-xs text-red-700 dark:text-red-300",
-				children: /* @__PURE__ */ jsxDEV("div", {
-					className: "mx-auto flex max-w-6xl items-center justify-between gap-4",
-					children: [/* @__PURE__ */ jsxDEV("div", {
+				"data-testid": "global-offline-banner",
+				className: "ca-fade-in sticky top-14 z-[120] border-b border-amber-500/40 bg-amber-50 px-4 py-2 text-xs text-amber-900 shadow-sm sm:top-16 dark:bg-amber-950 dark:text-amber-100",
+				children: /* @__PURE__ */ jsxs("div", {
+					className: "mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3",
+					children: [/* @__PURE__ */ jsxs("div", {
 						className: "flex items-center gap-2",
-						children: [/* @__PURE__ */ jsxDEV(AlertTriangle, { className: "h-4 w-4 shrink-0" }, void 0, false, {
-							fileName: _jsxFileName$19,
-							lineNumber: 156,
-							columnNumber: 15
-						}, this), /* @__PURE__ */ jsxDEV("span", { children: networkError }, void 0, false, {
-							fileName: _jsxFileName$19,
-							lineNumber: 157,
-							columnNumber: 15
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$19,
-						lineNumber: 155,
-						columnNumber: 13
-					}, this), onRetry && /* @__PURE__ */ jsxDEV("button", {
+						children: [
+							/* @__PURE__ */ jsx(WifiOff, { className: "h-4 w-4 shrink-0" }),
+							/* @__PURE__ */ jsx("span", { children: "You appear to be offline. Cached catalog items remain visible; live orders require a connection." }),
+							offlineRefId && /* @__PURE__ */ jsxs("span", {
+								className: "font-mono-nums rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold",
+								children: ["Ref: ", offlineRefId]
+							})
+						]
+					}), /* @__PURE__ */ jsxs("button", {
 						type: "button",
-						onClick: onRetry,
-						className: "btn-press inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-current px-3 py-1 font-medium hover:opacity-80",
-						children: [/* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3 w-3" }, void 0, false, {
-							fileName: _jsxFileName$19,
-							lineNumber: 165,
-							columnNumber: 17
-						}, this), "Retry"]
-					}, void 0, true, {
-						fileName: _jsxFileName$19,
-						lineNumber: 160,
-						columnNumber: 15
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$19,
-					lineNumber: 154,
-					columnNumber: 11
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 150,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("main", {
+						onClick: () => triggerGlobalErrorRetry(onRetry),
+						className: "btn-press inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-current px-3 py-1 font-medium hover:opacity-80",
+						children: [/* @__PURE__ */ jsx(RefreshCw, { className: "h-3 w-3" }), "Retry"]
+					})]
+				})
+			}),
+			(globalError || networkError) && !isOffline && /* @__PURE__ */ jsx("div", {
+				role: "alert",
+				"data-testid": "global-error-banner",
+				className: "ca-fade-in sticky top-14 z-[120] border-b border-red-500/35 bg-red-50 px-4 py-2.5 text-xs text-red-800 shadow-sm sm:top-16 dark:bg-red-950 dark:text-red-100",
+				children: /* @__PURE__ */ jsxs("div", {
+					className: "mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4",
+					children: [/* @__PURE__ */ jsxs("div", {
+						className: "flex flex-wrap items-center gap-2",
+						children: [
+							/* @__PURE__ */ jsx(AlertTriangle, { className: "h-4 w-4 shrink-0" }),
+							/* @__PURE__ */ jsx("span", {
+								className: "font-medium",
+								children: globalError?.message || networkError
+							}),
+							globalError?.referenceId && /* @__PURE__ */ jsxs("span", {
+								className: "font-mono-nums rounded bg-red-500/15 px-2 py-0.5 text-[11px] font-semibold",
+								children: ["Ref: ", globalError.referenceId]
+							})
+						]
+					}), /* @__PURE__ */ jsxs("div", {
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ jsxs("button", {
+							type: "button",
+							onClick: () => triggerGlobalErrorRetry(onRetry),
+							className: "btn-press inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-current px-3 py-1 font-medium hover:opacity-80",
+							children: [/* @__PURE__ */ jsx(RefreshCw, { className: "h-3 w-3" }), "Retry"]
+						}), globalError && /* @__PURE__ */ jsx("button", {
+							type: "button",
+							onClick: clearGlobalError,
+							"aria-label": "Dismiss error notice",
+							className: "inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg hover:bg-red-500/15",
+							children: /* @__PURE__ */ jsx(X, { className: "h-3.5 w-3.5" })
+						})]
+					})]
+				})
+			}),
+			/* @__PURE__ */ jsx("main", {
 				className: "ca-page-enter flex-1 pb-20 md:pb-8",
 				children
-			}, location.pathname, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 174,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("footer", {
+			}, location.pathname),
+			/* @__PURE__ */ jsx("footer", {
 				className: "bg-[var(--ca-surface-subtle)] pb-20 md:pb-10",
-				children: /* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsxs("div", {
 					className: "mx-auto max-w-6xl px-4 py-12 sm:px-6",
-					children: [/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsxs("div", {
 						className: "grid grid-cols-1 gap-8 md:grid-cols-5",
 						children: [
-							/* @__PURE__ */ jsxDEV("div", {
+							/* @__PURE__ */ jsxs("div", {
 								className: "md:col-span-2",
 								children: [
-									/* @__PURE__ */ jsxDEV("p", {
+									/* @__PURE__ */ jsx("p", {
 										className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 										children: t.brandFull
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 183,
-										columnNumber: 15
-									}, this),
-									/* @__PURE__ */ jsxDEV("p", {
+									}),
+									/* @__PURE__ */ jsx("p", {
 										className: "mt-2 max-w-md text-sm leading-relaxed text-[var(--ca-text-muted)]",
 										children: t.footer.summary
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 186,
-										columnNumber: 15
-									}, this),
-									/* @__PURE__ */ jsxDEV("div", {
+									}),
+									/* @__PURE__ */ jsxs("div", {
 										className: "mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-[var(--ca-text-muted)]",
 										children: [
-											/* @__PURE__ */ jsxDEV("a", {
+											/* @__PURE__ */ jsx("a", {
 												href: `mailto:${STORE_CONFIG.email}`,
 												className: "inline-flex min-h-[44px] items-center hover:text-[var(--ca-text)]",
 												children: STORE_CONFIG.email
-											}, void 0, false, {
-												fileName: _jsxFileName$19,
-												lineNumber: 190,
-												columnNumber: 17
-											}, this),
-											/* @__PURE__ */ jsxDEV("a", {
+											}),
+											/* @__PURE__ */ jsx("a", {
 												href: `tel:${STORE_CONFIG.phoneDisplay}`,
 												className: "inline-flex min-h-[44px] items-center hover:text-[var(--ca-text)]",
 												children: STORE_CONFIG.phoneDisplay
-											}, void 0, false, {
-												fileName: _jsxFileName$19,
-												lineNumber: 193,
-												columnNumber: 17
-											}, this),
-											/* @__PURE__ */ jsxDEV("a", {
+											}),
+											/* @__PURE__ */ jsx("a", {
 												href: STORE_CONFIG.whatsappUrl,
 												target: "_blank",
 												rel: "noopener noreferrer",
 												className: "inline-flex min-h-[44px] items-center hover:text-[var(--ca-text)]",
 												children: t.home.whatsapp
-											}, void 0, false, {
-												fileName: _jsxFileName$19,
-												lineNumber: 196,
-												columnNumber: 17
-											}, this)
+											})
 										]
-									}, void 0, true, {
-										fileName: _jsxFileName$19,
-										lineNumber: 189,
-										columnNumber: 15
-									}, this),
-									/* @__PURE__ */ jsxDEV("p", {
+									}),
+									/* @__PURE__ */ jsx("p", {
 										className: "mt-3 text-[11px] text-[var(--ca-text-muted)]",
 										children: t.footer.privacyNote
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 205,
-										columnNumber: 15
-									}, this)
+									})
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 182,
-								columnNumber: 13
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							}),
+							/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-xs font-semibold text-[var(--ca-text)]",
 								children: t.footer.pagesHeading
-							}, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 211,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("ul", {
+							}), /* @__PURE__ */ jsxs("ul", {
 								className: "mt-3 space-y-1 text-sm",
 								children: [
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.home
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 216,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 215,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/shop"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.shop
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 224,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 223,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/about"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.about
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 232,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 231,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/contact"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.contact
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 240,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 239,
-										columnNumber: 17
-									}, this)
+									}) })
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 214,
-								columnNumber: 15
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 210,
-								columnNumber: 13
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							})] }),
+							/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-xs font-semibold text-[var(--ca-text)]",
 								children: t.footer.guidesHeading
-							}, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 251,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("ul", {
+							}), /* @__PURE__ */ jsxs("ul", {
 								className: "mt-3 space-y-1 text-sm",
 								children: [
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/faq"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.faq
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 256,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 255,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/size-guide"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.sizeGuide
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 264,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 263,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/shipping"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.shipping
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 272,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 271,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: "/orders",
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.orders
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 280,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 279,
-										columnNumber: 17
-									}, this)
+									}) })
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 254,
-								columnNumber: 15
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 250,
-								columnNumber: 13
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							})] }),
+							/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-xs font-semibold text-[var(--ca-text)]",
 								children: t.footer.accountHeading
-							}, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 291,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("ul", {
+							}), /* @__PURE__ */ jsxs("ul", {
 								className: "mt-3 space-y-1 text-sm",
 								children: [
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: "/profile",
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.profile
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 296,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 295,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: "/auth",
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.signIn
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 304,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 303,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/terms"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.terms
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 312,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 311,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV(Link, {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx(Link, {
 										to: localize("/privacy"),
 										className: "inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
 										children: t.nav.privacy
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 320,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 319,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("li", { children: /* @__PURE__ */ jsxDEV("button", {
+									}) }),
+									/* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx("button", {
 										type: "button",
 										onClick: toggleTheme,
 										className: "btn-press inline-flex min-h-[44px] items-center gap-2 text-sm text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
-										children: theme === "light" ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
-											/* @__PURE__ */ jsxDEV(Moon, { className: "h-3.5 w-3.5" }, void 0, false, {
-												fileName: _jsxFileName$19,
-												lineNumber: 335,
-												columnNumber: 25
-											}, this),
+										children: theme === "light" ? /* @__PURE__ */ jsxs(Fragment, { children: [
+											/* @__PURE__ */ jsx(Moon, { className: "h-3.5 w-3.5" }),
 											" ",
 											t.footer.darkMode
-										] }, void 0, true, {
-											fileName: _jsxFileName$19,
-											lineNumber: 334,
-											columnNumber: 23
-										}, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
-											/* @__PURE__ */ jsxDEV(Sun, { className: "h-3.5 w-3.5" }, void 0, false, {
-												fileName: _jsxFileName$19,
-												lineNumber: 339,
-												columnNumber: 25
-											}, this),
+										] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+											/* @__PURE__ */ jsx(Sun, { className: "h-3.5 w-3.5" }),
 											" ",
 											t.footer.lightMode
-										] }, void 0, true, {
-											fileName: _jsxFileName$19,
-											lineNumber: 338,
-											columnNumber: 23
-										}, this)
-									}, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 328,
-										columnNumber: 19
-									}, this) }, void 0, false, {
-										fileName: _jsxFileName$19,
-										lineNumber: 327,
-										columnNumber: 17
-									}, this)
+										] })
+									}) })
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 294,
-								columnNumber: 15
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 290,
-								columnNumber: 13
-							}, this)
+							})] })
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$19,
-						lineNumber: 181,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					}), /* @__PURE__ */ jsxs("div", {
 						className: "mt-10 flex flex-col items-start justify-between gap-2 text-xs text-[var(--ca-text-muted)] sm:flex-row sm:items-center",
-						children: [/* @__PURE__ */ jsxDEV("span", { children: [
+						children: [/* @__PURE__ */ jsxs("span", { children: [
 							"© ",
 							(/* @__PURE__ */ new Date()).getFullYear(),
 							" ",
 							t.footer.rights
-						] }, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 349,
-							columnNumber: 13
-						}, this), /* @__PURE__ */ jsxDEV("span", { children: t.footer.currencyNote }, void 0, false, {
-							fileName: _jsxFileName$19,
-							lineNumber: 350,
-							columnNumber: 13
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$19,
-						lineNumber: 348,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$19,
-					lineNumber: 180,
-					columnNumber: 9
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 179,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("nav", {
+						] }), /* @__PURE__ */ jsx("span", { children: t.footer.currencyNote })]
+					})]
+				})
+			}),
+			/* @__PURE__ */ jsx("nav", {
 				"aria-label": "Mobile Navigation",
 				className: "glass-bar pb-safe fixed inset-x-0 bottom-0 z-40 border-t md:hidden",
-				children: /* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsxs("div", {
 					className: "grid h-14 grid-cols-4 items-center",
 					children: [
-						/* @__PURE__ */ jsxDEV(Link, {
+						/* @__PURE__ */ jsxs(Link, {
 							to: localize("/"),
 							className: `flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${basePath === "/" ? "text-[var(--ca-accent)]" : "text-[var(--ca-text-muted)]"}`,
-							children: [/* @__PURE__ */ jsxDEV(Home, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 367,
-								columnNumber: 13
-							}, this), /* @__PURE__ */ jsxDEV("span", { children: t.nav.home }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 368,
-								columnNumber: 13
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 361,
-							columnNumber: 11
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+							children: [/* @__PURE__ */ jsx(Home, { className: "h-4 w-4" }), /* @__PURE__ */ jsx("span", { children: t.nav.home })]
+						}),
+						/* @__PURE__ */ jsxs(Link, {
 							to: localize("/shop"),
 							className: `flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${basePath.startsWith("/shop") || basePath.startsWith("/product") || basePath.startsWith("/category") ? "text-[var(--ca-accent)]" : "text-[var(--ca-text-muted)]"}`,
-							children: [/* @__PURE__ */ jsxDEV(ShoppingBag, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 378,
-								columnNumber: 13
-							}, this), /* @__PURE__ */ jsxDEV("span", { children: t.nav.shop }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 379,
-								columnNumber: 13
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 370,
-							columnNumber: 11
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+							children: [/* @__PURE__ */ jsx(ShoppingBag, { className: "h-4 w-4" }), /* @__PURE__ */ jsx("span", { children: t.nav.shop })]
+						}),
+						/* @__PURE__ */ jsxs(Link, {
 							to: "/orders",
 							className: `relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${basePath.startsWith("/orders") ? "text-[var(--ca-accent)]" : "text-[var(--ca-text-muted)]"}`,
-							children: [/* @__PURE__ */ jsxDEV(PackageCheck, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 389,
-								columnNumber: 13
-							}, this), /* @__PURE__ */ jsxDEV("span", {
+							children: [/* @__PURE__ */ jsx(PackageCheck, { className: "h-4 w-4" }), /* @__PURE__ */ jsxs("span", {
 								className: "inline-flex items-center gap-1",
-								children: [t.nav.orders, totalItems > 0 && /* @__PURE__ */ jsxDEV("span", {
+								children: [t.nav.orders, totalItems > 0 && /* @__PURE__ */ jsx("span", {
 									className: "ca-badge-pop font-mono-nums rounded bg-[var(--ca-accent)] px-1 text-[10px] font-bold text-[var(--ca-accent-fg)]",
 									children: totalItems
-								}, totalItems, false, {
-									fileName: _jsxFileName$19,
-									lineNumber: 393,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 390,
-								columnNumber: 13
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 381,
-							columnNumber: 11
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+								}, totalItems)]
+							})]
+						}),
+						/* @__PURE__ */ jsxs(Link, {
 							to: "/profile",
 							className: `relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${basePath.startsWith("/profile") || basePath.startsWith("/auth") ? "text-[var(--ca-accent)]" : "text-[var(--ca-text-muted)]"}`,
-							children: [/* @__PURE__ */ jsxDEV(User, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$19,
-								lineNumber: 410,
-								columnNumber: 13
-							}, this), /* @__PURE__ */ jsxDEV("span", { children: [t.nav.profile, unreadNotifications > 0 ? ` (${unreadNotifications})` : ""] }, void 0, true, {
-								fileName: _jsxFileName$19,
-								lineNumber: 411,
-								columnNumber: 13
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$19,
-							lineNumber: 402,
-							columnNumber: 11
-						}, this)
+							children: [/* @__PURE__ */ jsx(User, { className: "h-4 w-4" }), /* @__PURE__ */ jsxs("span", { children: [t.nav.profile, unreadNotifications > 0 ? ` (${unreadNotifications})` : ""] })]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$19,
-					lineNumber: 360,
-					columnNumber: 9
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$19,
-				lineNumber: 356,
-				columnNumber: 7
-			}, this)
+				})
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$19,
-		lineNumber: 73,
-		columnNumber: 5
-	}, this);
+	});
+}
+// src/services/orderReceipts.ts
+var RECEIPT_STORAGE_KEY = "ca_recent_order_receipts_v1";
+var memoryReceipts = /* @__PURE__ */ new Map();
+function saveOrderReceipt(order) {
+	if (!order?.id) return;
+	memoryReceipts.set(order.id, order);
+	if (typeof sessionStorage !== "undefined") try {
+		const existingRaw = sessionStorage.getItem(RECEIPT_STORAGE_KEY);
+		const parsed = existingRaw ? JSON.parse(existingRaw) : {};
+		const entries = Object.entries(parsed).filter(([k]) => k !== order.id).slice(-4);
+		const next = Object.fromEntries(entries);
+		next[order.id] = order;
+		sessionStorage.setItem(RECEIPT_STORAGE_KEY, JSON.stringify(next));
+	} catch {}
+}
+function getOrderReceipt(orderId) {
+	if (!orderId) return null;
+	const fromMem = memoryReceipts.get(orderId);
+	if (fromMem) return fromMem;
+	if (typeof sessionStorage !== "undefined") try {
+		const existingRaw = sessionStorage.getItem(RECEIPT_STORAGE_KEY);
+		if (existingRaw) {
+			const parsed = JSON.parse(existingRaw);
+			if (parsed && parsed[orderId]) {
+				memoryReceipts.set(orderId, parsed[orderId]);
+				return parsed[orderId];
+			}
+		}
+	} catch {}
+	return null;
 }
 // src/components/ProductCard.tsx
-var _jsxFileName$18 = "/app/applet/src/components/ProductCard.tsx";
 function getModernImageSources(src) {
 	if (!src) return {};
 	const match = /^(\/src\/assets\/images\/[^?#]+)\.(jpe?g|png)$/i.exec(src.trim());
@@ -1843,27 +1487,15 @@ function getModernImageSources(src) {
 function ResilientImage({ src, alt, className = "", width = 400, height = 300, priority = false }) {
 	const [failed, setFailed] = useState(false);
 	const [loaded, setLoaded] = useState(priority);
-	if (failed || !src) return /* @__PURE__ */ jsxDEV("div", {
+	if (failed || !src) return /* @__PURE__ */ jsxs("div", {
 		className: `flex flex-col items-center justify-center bg-[var(--ca-surface-subtle)] text-[var(--ca-text-muted)] ${className}`,
-		children: [/* @__PURE__ */ jsxDEV(Package, { className: "h-7 w-7 opacity-50" }, void 0, false, {
-			fileName: _jsxFileName$18,
-			lineNumber: 47,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("span", {
+		children: [/* @__PURE__ */ jsx(Package, { className: "h-7 w-7 opacity-50" }), /* @__PURE__ */ jsx("span", {
 			className: "mt-2 px-3 text-center text-xs font-medium opacity-75",
 			children: alt
-		}, void 0, false, {
-			fileName: _jsxFileName$18,
-			lineNumber: 48,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$18,
-		lineNumber: 44,
-		columnNumber: 7
-	}, this);
+		})]
+	});
 	const modern = getModernImageSources(src);
-	const imgElement = /* @__PURE__ */ jsxDEV("img", {
+	const imgElement = /* @__PURE__ */ jsx("img", {
 		src,
 		alt,
 		width,
@@ -1875,164 +1507,90 @@ function ResilientImage({ src, alt, className = "", width = 400, height = 300, p
 		onLoad: () => setLoaded(true),
 		onError: () => setFailed(true),
 		className: `${className} transition-opacity duration-200 ${loaded || priority ? "opacity-100" : "opacity-85"}`
-	}, void 0, false, {
-		fileName: _jsxFileName$18,
-		lineNumber: 55,
-		columnNumber: 5
-	}, this);
-	if (modern.avif || modern.webp) return /* @__PURE__ */ jsxDEV("picture", {
+	});
+	if (modern.avif || modern.webp) return /* @__PURE__ */ jsxs("picture", {
 		className: "block h-full w-full",
 		children: [
-			modern.avif && /* @__PURE__ */ jsxDEV("source", {
+			modern.avif && /* @__PURE__ */ jsx("source", {
 				srcSet: modern.avif,
 				type: "image/avif"
-			}, void 0, false, {
-				fileName: _jsxFileName$18,
-				lineNumber: 75,
-				columnNumber: 25
-			}, this),
-			modern.webp && /* @__PURE__ */ jsxDEV("source", {
+			}),
+			modern.webp && /* @__PURE__ */ jsx("source", {
 				srcSet: modern.webp,
 				type: "image/webp"
-			}, void 0, false, {
-				fileName: _jsxFileName$18,
-				lineNumber: 76,
-				columnNumber: 25
-			}, this),
+			}),
 			imgElement
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$18,
-		lineNumber: 74,
-		columnNumber: 7
-	}, this);
+	});
 	return imgElement;
 }
 function ProductCard({ product, onQuickBuy }) {
 	const { openBuySheet, isWishlisted, toggleWishlist } = useCart();
 	const { localize, t } = useLocale();
 	const liked = isWishlisted(product.id);
+	const stockStatus = deriveProductStockStatus(product);
 	const handleBuy = () => {
+		if (!stockStatus.isAvailable) return;
 		if (onQuickBuy) onQuickBuy(product);
 		else openBuySheet(product, 1, product.sizes?.[0]);
 	};
-	return /* @__PURE__ */ jsxDEV("article", {
+	const stockLabel = stockStatus.level === "out_of_stock" ? t.product.outOfStock : stockStatus.level === "low_stock" ? t.product.lowStock : t.product.inStock;
+	const stockBadgeStyle = stockStatus.level === "out_of_stock" ? "bg-red-500/12 text-red-700 dark:text-red-300" : stockStatus.level === "low_stock" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300";
+	return /* @__PURE__ */ jsxs("article", {
+		"data-testid": `product-card-${product.slug}`,
 		className: "ca-fade-in glass-panel group flex flex-col overflow-hidden rounded-2xl p-2 transition-transform duration-200 hover:-translate-y-0.5 sm:p-3",
-		children: [/* @__PURE__ */ jsxDEV("div", {
+		children: [/* @__PURE__ */ jsxs("div", {
 			className: "relative",
-			children: [/* @__PURE__ */ jsxDEV(Link, {
+			children: [/* @__PURE__ */ jsx(Link, {
 				to: localize(`/product/${product.slug}`),
 				className: "relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-accent)]",
-				children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+				children: /* @__PURE__ */ jsx(ResilientImage, {
 					src: product.coverImage,
 					alt: `${product.title} — ${product.categoryName}`,
-					className: "h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-				}, void 0, false, {
-					fileName: _jsxFileName$18,
-					lineNumber: 102,
-					columnNumber: 11
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$18,
-				lineNumber: 98,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("button", {
+					className: `h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03] ${!stockStatus.isAvailable ? "opacity-65 grayscale-[25%]" : ""}`
+				})
+			}), /* @__PURE__ */ jsx("button", {
 				type: "button",
 				onClick: () => toggleWishlist(product.id),
 				"aria-label": liked ? `Remove ${product.title} from wishlist` : `Save ${product.title} to wishlist`,
 				"aria-pressed": liked,
 				className: "btn-press absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-[10px] bg-[var(--ca-surface-solid)]/90 shadow-sm transition-colors hover:bg-[var(--ca-surface-solid)]",
-				children: /* @__PURE__ */ jsxDEV(Heart, { className: `h-4 w-4 transition-colors ${liked ? "ca-heart-pop fill-red-500 text-red-500" : "text-[var(--ca-text)]"}` }, liked ? "liked" : "idle", false, {
-					fileName: _jsxFileName$18,
-					lineNumber: 116,
-					columnNumber: 11
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$18,
-				lineNumber: 109,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$18,
-			lineNumber: 97,
-			columnNumber: 7
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsx(Heart, { className: `h-4 w-4 transition-colors ${liked ? "ca-heart-pop fill-red-500 text-red-500" : "text-[var(--ca-text)]"}` }, liked ? "liked" : "idle")
+			})]
+		}), /* @__PURE__ */ jsxs("div", {
 			className: "flex flex-1 flex-col justify-between px-1 pt-3 pb-1 sm:px-1.5 sm:pt-3.5 sm:pb-1.5",
-			children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("div", {
-				className: "flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--ca-text-muted)] sm:text-xs",
-				children: [/* @__PURE__ */ jsxDEV("span", {
+			children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsxs("div", {
+				className: "flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-[var(--ca-text-muted)] sm:text-xs",
+				children: [/* @__PURE__ */ jsx("span", {
 					className: "truncate",
 					children: product.categoryName
-				}, void 0, false, {
-					fileName: _jsxFileName$18,
-					lineNumber: 130,
-					columnNumber: 13
-				}, this), !product.inStock && /* @__PURE__ */ jsxDEV("span", {
-					className: "rounded-full bg-[var(--ca-surface-subtle)] px-2 py-0.5 text-[10px] font-medium text-[var(--ca-text-muted)]",
-					children: t.product.outOfStock
-				}, void 0, false, {
-					fileName: _jsxFileName$18,
-					lineNumber: 132,
-					columnNumber: 15
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$18,
-				lineNumber: 129,
-				columnNumber: 11
-			}, this), /* @__PURE__ */ jsxDEV(Link, {
+				}), /* @__PURE__ */ jsx("span", {
+					"data-testid": "product-stock-badge",
+					className: `rounded-full px-2 py-0.5 text-[10px] font-medium ${stockBadgeStyle}`,
+					children: stockLabel
+				})]
+			}), /* @__PURE__ */ jsx(Link, {
 				to: localize(`/product/${product.slug}`),
 				className: "mt-1 line-clamp-2 block text-sm font-semibold leading-snug text-[var(--ca-text)] hover:text-[var(--ca-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-accent)] sm:mt-1.5 sm:text-base",
 				children: product.title
-			}, void 0, false, {
-				fileName: _jsxFileName$18,
-				lineNumber: 137,
-				columnNumber: 11
-			}, this)] }, void 0, true, {
-				fileName: _jsxFileName$18,
-				lineNumber: 128,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+			})] }), /* @__PURE__ */ jsxs("div", {
 				className: "mt-3 flex flex-wrap items-center justify-between gap-2 pt-1 sm:mt-4",
-				children: [/* @__PURE__ */ jsxDEV("span", {
+				children: [/* @__PURE__ */ jsx("span", {
 					className: "font-mono-nums text-xs font-semibold text-[var(--ca-text)] sm:text-sm",
 					children: formatPKR(product.price)
-				}, void 0, false, {
-					fileName: _jsxFileName$18,
-					lineNumber: 146,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("button", {
+				}), /* @__PURE__ */ jsxs("button", {
 					type: "button",
+					disabled: !stockStatus.isAvailable,
 					onClick: handleBuy,
-					"aria-label": `${t.product.buyNow} ${product.title}`,
-					className: "btn-press inline-flex min-h-[44px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] bg-[var(--ca-text)] px-3.5 py-2 text-xs font-medium text-[var(--ca-bg)] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-accent)] sm:px-4",
-					children: [/* @__PURE__ */ jsxDEV(ShoppingBag, { className: "h-3.5 w-3.5" }, void 0, false, {
-						fileName: _jsxFileName$18,
-						lineNumber: 155,
-						columnNumber: 13
-					}, this), t.product.buyNow.split(" ")[0]]
-				}, void 0, true, {
-					fileName: _jsxFileName$18,
-					lineNumber: 149,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$18,
-				lineNumber: 145,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$18,
-			lineNumber: 127,
-			columnNumber: 7
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$18,
-		lineNumber: 96,
-		columnNumber: 5
-	}, this);
+					"aria-label": stockStatus.isAvailable ? `${t.product.buyNow} ${product.title}` : `${product.title} ${t.product.outOfStock}`,
+					className: `inline-flex min-h-[44px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[10px] px-3.5 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-accent)] sm:px-4 ${stockStatus.isAvailable ? "btn-press bg-[var(--ca-text)] text-[var(--ca-bg)] hover:opacity-90" : "cursor-not-allowed bg-[var(--ca-surface-subtle)] text-[var(--ca-text-muted)] opacity-70"}`,
+					children: [/* @__PURE__ */ jsx(ShoppingBag, { className: "h-3.5 w-3.5" }), stockStatus.isAvailable ? t.product.buyNow.split(" ")[0] : t.product.outOfStock]
+				})]
+			})]
+		})]
+	});
 }
 // src/components/TurnstileField.tsx
-var _jsxFileName$17 = "/app/applet/src/components/TurnstileField.tsx";
 var TURNSTILE_SITE_KEY = "".trim();
 /**
 * Renders an offscreen honeypot input for automated bot traps and,
@@ -2042,17 +1600,13 @@ function TurnstileField({ onToken, honeypot, onHoneypotChange, action = "submit"
 	useRef(null);
 	useRef(null);
 	useEffect(() => {}, [action, onToken]);
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsxs("div", {
 		"aria-hidden": "true",
 		className: "pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden opacity-0",
-		children: [/* @__PURE__ */ jsxDEV("label", {
+		children: [/* @__PURE__ */ jsx("label", {
 			htmlFor: `ca-hp-${action}`,
 			children: "Leave this field empty"
-		}, void 0, false, {
-			fileName: _jsxFileName$17,
-			lineNumber: 106,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("input", {
+		}), /* @__PURE__ */ jsx("input", {
 			id: `ca-hp-${action}`,
 			name: "company_website",
 			type: "text",
@@ -2060,27 +1614,16 @@ function TurnstileField({ onToken, honeypot, onHoneypotChange, action = "submit"
 			autoComplete: "off",
 			value: honeypot,
 			onChange: (e) => onHoneypotChange(e.target.value)
-		}, void 0, false, {
-			fileName: _jsxFileName$17,
-			lineNumber: 107,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$17,
-		lineNumber: 102,
-		columnNumber: 7
-	}, this), TURNSTILE_SITE_KEY] }, void 0, true, {
-		fileName: _jsxFileName$17,
-		lineNumber: 100,
-		columnNumber: 5
-	}, this);
+		})]
+	}), TURNSTILE_SITE_KEY] });
 }
 // src/components/PurchaseSheet.tsx
-var _jsxFileName$16 = "/app/applet/src/components/PurchaseSheet.tsx";
 function PurchaseSheet() {
 	const { checkoutModalProduct, closeBuySheet, addItem } = useCart();
 	const { user } = useAuth();
 	const { showToast } = useToast();
+	const { localize, t } = useLocale();
+	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const [step, setStep] = useState("configure");
 	const [selectedImage, setSelectedImage] = useState("");
@@ -2170,10 +1713,14 @@ function PurchaseSheet() {
 	if (!checkoutModalProduct) return null;
 	const { product } = checkoutModalProduct;
 	const allImages = [product.coverImage, ...product.extraImages || []];
+	const stockStatus = deriveProductStockStatus(product);
+	const sheetStockLabel = stockStatus.level === "out_of_stock" ? t.product.outOfStock : stockStatus.level === "low_stock" ? t.product.lowStock : t.product.inStock;
 	const handleProceedToCheckout = () => {
+		if (!stockStatus.isAvailable) return;
 		setStep("checkout");
 	};
 	const handleAddToBag = () => {
+		if (!stockStatus.isAvailable) return;
 		addItem(product, quantity, selectedSize);
 		showToast(`Added ${product.title} to your bag.`, "success");
 		closeBuySheet();
@@ -2235,303 +1782,169 @@ function PurchaseSheet() {
 				honeypot
 			});
 			idempotencyKeyRef.current = createIdempotencyKey("ord");
+			saveOrderReceipt(order);
 			setCreatedOrder(order);
 			setSubmitStatus("success");
-			setStep("success");
+			await queryClient.invalidateQueries({ queryKey: ["orders", "mine"] });
 			showToast(`Order ${order.id} submitted as Pending.`, "success");
+			closeBuySheet();
+			navigate(`${localize("/order-confirmed")}?id=${encodeURIComponent(order.id)}`, { state: { order } });
 		} catch (err) {
-			setSubmitError(err instanceof Error ? err.message : "Unable to submit order.");
+			const normalized = normalizeAppError(err, { fallbackMessage: "Unable to submit order." });
+			setSubmitError(normalized.kind === "server" || normalized.kind === "timeout" || normalized.kind === "offline" ? `${normalized.message} (Ref: ${normalized.referenceId})` : normalized.message);
 			setSubmitStatus("error");
 			window.setTimeout(() => setSubmitStatus("idle"), 500);
 		} finally {
 			setSubmitting(false);
 		}
 	};
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(CALoadingOverlay, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(CALoadingOverlay, {
 		open: submitting,
 		label: "Placing your order..."
-	}, void 0, false, {
-		fileName: _jsxFileName$16,
-		lineNumber: 221,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("div", {
+	}), /* @__PURE__ */ jsx("div", {
 		role: "dialog",
 		"aria-modal": "true",
 		"aria-label": `Purchase ${product.title}`,
 		className: "ca-fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4",
-		children: /* @__PURE__ */ jsxDEV("div", {
+		children: /* @__PURE__ */ jsxs("div", {
 			className: "ca-sheet-up glass-sheet relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-3xl p-5 sm:rounded-2xl sm:p-7",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", {
+				/* @__PURE__ */ jsxs("div", {
 					className: "flex items-center justify-between gap-4 pb-2",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsxs("p", {
 						className: "text-xs text-[var(--ca-text-muted)]",
 						children: [
 							product.categoryName,
 							" · ",
 							step === "configure" ? "Select option" : step === "checkout" ? "Delivery & verification" : "Order received"
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$16,
-						lineNumber: 231,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("h2", {
+					}), /* @__PURE__ */ jsx("h2", {
 						className: "font-display mt-0.5 text-2xl font-semibold text-[var(--ca-text)]",
 						children: product.title
-					}, void 0, false, {
-						fileName: _jsxFileName$16,
-						lineNumber: 234,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$16,
-						lineNumber: 230,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("button", {
+					})] }), /* @__PURE__ */ jsx("button", {
 						type: "button",
 						onClick: closeBuySheet,
 						"aria-label": "Close purchase sheet",
 						className: "btn-press inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-[var(--ca-text-muted)] hover:bg-[var(--ca-surface-subtle)] hover:text-[var(--ca-text)]",
-						children: /* @__PURE__ */ jsxDEV(X, { className: "h-5 w-5" }, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 244,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$16,
-						lineNumber: 238,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$16,
-					lineNumber: 229,
-					columnNumber: 11
-				}, this),
-				step === "configure" && /* @__PURE__ */ jsxDEV("div", {
+						children: /* @__PURE__ */ jsx(X, { className: "h-5 w-5" })
+					})]
+				}),
+				step === "configure" && /* @__PURE__ */ jsxs("div", {
 					className: "mt-6 grid grid-cols-1 gap-6 md:grid-cols-2",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [
-						/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [
+						/* @__PURE__ */ jsx("div", {
 							className: "aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--ca-surface-subtle)]",
-							children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+							children: /* @__PURE__ */ jsx(ResilientImage, {
 								src: selectedImage,
 								alt: product.title,
 								className: "h-full w-full object-cover"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 253,
-								columnNumber: 17
-							}, this)
-						}, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 252,
-							columnNumber: 15
-						}, this),
-						allImages.length > 1 && /* @__PURE__ */ jsxDEV("div", {
+							})
+						}),
+						allImages.length > 1 && /* @__PURE__ */ jsx("div", {
 							className: "mt-3 flex gap-2.5 overflow-x-auto pb-1",
-							children: allImages.map((img, i) => /* @__PURE__ */ jsxDEV("button", {
+							children: allImages.map((img, i) => /* @__PURE__ */ jsx("button", {
 								type: "button",
 								onClick: () => setSelectedImage(img),
 								"aria-label": `View image ${i + 1}`,
 								className: `h-14 w-18 shrink-0 overflow-hidden rounded-xl border transition-all ${selectedImage === img ? "border-[var(--ca-accent)] ring-1 ring-[var(--ca-accent)]" : "border-[var(--ca-border)] opacity-75 hover:opacity-100"}`,
-								children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+								children: /* @__PURE__ */ jsx(ResilientImage, {
 									src: img,
 									alt: `${product.title} angle ${i + 1}`,
 									className: "h-full w-full object-cover"
-								}, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 273,
-									columnNumber: 23
-								}, this)
-							}, i, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 262,
-								columnNumber: 21
-							}, this))
-						}, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 260,
-							columnNumber: 17
-						}, this),
-						/* @__PURE__ */ jsxDEV("p", {
+								})
+							}, i))
+						}),
+						/* @__PURE__ */ jsx("p", {
 							className: "mt-4 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 							children: product.description
-						}, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 278,
-							columnNumber: 15
-						}, this)
-					] }, void 0, true, {
-						fileName: _jsxFileName$16,
-						lineNumber: 251,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+						})
+					] }), /* @__PURE__ */ jsxs("div", {
 						className: "flex flex-col justify-between space-y-5",
-						children: [/* @__PURE__ */ jsxDEV("div", {
+						children: [/* @__PURE__ */ jsxs("div", {
 							className: "space-y-4",
 							children: [
-								/* @__PURE__ */ jsxDEV("div", {
-									className: "flex items-baseline justify-between",
-									children: [/* @__PURE__ */ jsxDEV("span", {
-										className: "font-mono-nums text-2xl font-semibold text-[var(--ca-text)]",
-										children: formatPKR(product.price)
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 287,
-										columnNumber: 19
-									}, this), /* @__PURE__ */ jsxDEV("span", {
+								/* @__PURE__ */ jsxs("div", {
+									className: "flex items-baseline justify-between gap-2",
+									children: [/* @__PURE__ */ jsxs("div", {
+										className: "flex items-center gap-2",
+										children: [/* @__PURE__ */ jsx("span", {
+											className: "font-mono-nums text-2xl font-semibold text-[var(--ca-text)]",
+											children: formatPKR(product.price)
+										}), /* @__PURE__ */ jsx("span", {
+											className: `rounded-full px-2 py-0.5 text-[10px] font-medium ${stockStatus.level === "out_of_stock" ? "bg-red-500/12 text-red-700 dark:text-red-300" : stockStatus.level === "low_stock" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"}`,
+											children: sheetStockLabel
+										})]
+									}), /* @__PURE__ */ jsxs("span", {
 										className: "text-xs text-[var(--ca-text-muted)]",
-										children: ["Total: ", /* @__PURE__ */ jsxDEV("strong", {
+										children: ["Total: ", /* @__PURE__ */ jsx("strong", {
 											className: "font-mono-nums text-[var(--ca-text)]",
 											children: formatPKR(product.price * quantity)
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 291,
-											columnNumber: 28
-										}, this)]
-									}, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 290,
-										columnNumber: 19
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 286,
-									columnNumber: 17
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", {
+										})]
+									})]
+								}),
+								/* @__PURE__ */ jsxs("div", {
 									className: "flex flex-wrap items-center justify-between gap-4",
-									children: [product.sizes && product.sizes.length > 0 && /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+									children: [product.sizes && product.sizes.length > 0 && /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Size / Fit"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 299,
-										columnNumber: 23
-									}, this), /* @__PURE__ */ jsxDEV("div", {
+									}), /* @__PURE__ */ jsx("div", {
 										className: "mt-1.5 flex flex-wrap gap-1.5",
-										children: product.sizes.map((sz) => /* @__PURE__ */ jsxDEV("button", {
+										children: product.sizes.map((sz) => /* @__PURE__ */ jsx("button", {
 											type: "button",
 											onClick: () => setSelectedSize(sz),
 											className: `rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${selectedSize === sz ? "border-[var(--ca-text)] bg-[var(--ca-text)] text-[var(--ca-bg)]" : "border-[var(--ca-border)] text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"}`,
 											children: sz
-										}, sz, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 302,
-											columnNumber: 27
-										}, this))
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 300,
-										columnNumber: 23
-									}, this)] }, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 298,
-										columnNumber: 21
-									}, this), /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+										}, sz))
+									})] }), /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Quantity"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 320,
-										columnNumber: 21
-									}, this), /* @__PURE__ */ jsxDEV("div", {
+									}), /* @__PURE__ */ jsxs("div", {
 										className: "mt-1.5 inline-flex items-center rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-subtle)]/60",
 										children: [
-											/* @__PURE__ */ jsxDEV("button", {
+											/* @__PURE__ */ jsx("button", {
 												type: "button",
 												onClick: () => setQuantity((q) => Math.max(1, q - 1)),
 												"aria-label": "Decrease quantity",
 												className: "p-2 text-[var(--ca-text)] hover:opacity-70",
-												children: /* @__PURE__ */ jsxDEV(Minus, { className: "h-3.5 w-3.5" }, void 0, false, {
-													fileName: _jsxFileName$16,
-													lineNumber: 328,
-													columnNumber: 25
-												}, this)
-											}, void 0, false, {
-												fileName: _jsxFileName$16,
-												lineNumber: 322,
-												columnNumber: 23
-											}, this),
-											/* @__PURE__ */ jsxDEV("span", {
+												children: /* @__PURE__ */ jsx(Minus, { className: "h-3.5 w-3.5" })
+											}),
+											/* @__PURE__ */ jsx("span", {
 												className: "font-mono-nums min-w-[2rem] text-center text-sm font-medium",
 												children: quantity
-											}, void 0, false, {
-												fileName: _jsxFileName$16,
-												lineNumber: 330,
-												columnNumber: 23
-											}, this),
-											/* @__PURE__ */ jsxDEV("button", {
+											}),
+											/* @__PURE__ */ jsx("button", {
 												type: "button",
 												onClick: () => setQuantity((q) => Math.min(20, q + 1)),
 												"aria-label": "Increase quantity",
 												className: "p-2 text-[var(--ca-text)] hover:opacity-70",
-												children: /* @__PURE__ */ jsxDEV(Plus, { className: "h-3.5 w-3.5" }, void 0, false, {
-													fileName: _jsxFileName$16,
-													lineNumber: 339,
-													columnNumber: 25
-												}, this)
-											}, void 0, false, {
-												fileName: _jsxFileName$16,
-												lineNumber: 333,
-												columnNumber: 23
-											}, this)
+												children: /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" })
+											})
 										]
-									}, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 321,
-										columnNumber: 21
-									}, this)] }, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 319,
-										columnNumber: 19
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 296,
-									columnNumber: 17
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+									})] })]
+								}),
+								/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 									className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 									children: "Payment Method"
-								}, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 347,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("div", {
+								}), /* @__PURE__ */ jsxs("div", {
 									className: "mt-2 grid grid-cols-2 gap-2 rounded-xl bg-[var(--ca-surface-subtle)] p-1",
-									children: [/* @__PURE__ */ jsxDEV("button", {
+									children: [/* @__PURE__ */ jsx("button", {
 										type: "button",
 										onClick: () => setPaymentMethod("cod"),
 										className: `rounded-lg px-3 py-2 text-xs font-semibold transition-all ${paymentMethod === "cod" ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 										children: "Cash on Delivery"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 351,
-										columnNumber: 21
-									}, this), /* @__PURE__ */ jsxDEV("button", {
+									}), /* @__PURE__ */ jsx("button", {
 										type: "button",
 										onClick: () => setPaymentMethod("installments"),
 										className: `rounded-lg px-3 py-2 text-xs font-semibold transition-all ${paymentMethod === "installments" ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 										children: "PKR Installments"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 362,
-										columnNumber: 21
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 350,
-									columnNumber: 19
-								}, this)] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 346,
-									columnNumber: 17
-								}, this),
-								paymentMethod === "installments" && /* @__PURE__ */ jsxDEV("div", {
+									})]
+								})] }),
+								paymentMethod === "installments" && /* @__PURE__ */ jsxs("div", {
 									className: "rounded-xl bg-[var(--ca-surface-subtle)] p-4",
 									children: [
-										/* @__PURE__ */ jsxDEV("div", {
+										/* @__PURE__ */ jsx("div", {
 											className: "flex flex-wrap gap-1.5",
-											children: plans.map((p) => /* @__PURE__ */ jsxDEV("button", {
+											children: plans.map((p) => /* @__PURE__ */ jsxs("button", {
 												type: "button",
 												onClick: () => setSelectedPlanId(p.id),
 												className: `rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${selectedPlanId === p.id ? "bg-[var(--ca-accent)] text-[var(--ca-accent-fg)]" : "bg-[var(--ca-surface-solid)] text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
@@ -2541,215 +1954,109 @@ function PurchaseSheet() {
 													p.markupPercent,
 													"%)"
 												]
-											}, p.id, true, {
-												fileName: _jsxFileName$16,
-												lineNumber: 380,
-												columnNumber: 25
-											}, this))
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 378,
-											columnNumber: 21
-										}, this),
-										calc && /* @__PURE__ */ jsxDEV("dl", {
+											}, p.id))
+										}),
+										calc && /* @__PURE__ */ jsxs("dl", {
 											className: "mt-4 space-y-1.5 text-xs",
 											children: [
-												/* @__PURE__ */ jsxDEV("div", {
+												/* @__PURE__ */ jsxs("div", {
 													className: "flex justify-between",
-													children: [/* @__PURE__ */ jsxDEV("dt", {
+													children: [/* @__PURE__ */ jsx("dt", {
 														className: "text-[var(--ca-text-muted)]",
 														children: "Product Subtotal"
-													}, void 0, false, {
-														fileName: _jsxFileName$16,
-														lineNumber: 398,
-														columnNumber: 27
-													}, this), /* @__PURE__ */ jsxDEV("dd", {
+													}), /* @__PURE__ */ jsx("dd", {
 														className: "font-mono-nums font-medium text-[var(--ca-text)]",
 														children: formatPKR(calc.subtotal)
-													}, void 0, false, {
-														fileName: _jsxFileName$16,
-														lineNumber: 399,
-														columnNumber: 27
-													}, this)]
-												}, void 0, true, {
-													fileName: _jsxFileName$16,
-													lineNumber: 397,
-													columnNumber: 25
-												}, this),
-												/* @__PURE__ */ jsxDEV("div", {
+													})]
+												}),
+												/* @__PURE__ */ jsxs("div", {
 													className: "flex justify-between",
-													children: [/* @__PURE__ */ jsxDEV("dt", {
+													children: [/* @__PURE__ */ jsxs("dt", {
 														className: "text-[var(--ca-text-muted)]",
 														children: [
 															"Interest (",
 															calc.markupPercent,
 															"%)"
 														]
-													}, void 0, true, {
-														fileName: _jsxFileName$16,
-														lineNumber: 404,
-														columnNumber: 27
-													}, this), /* @__PURE__ */ jsxDEV("dd", {
+													}), /* @__PURE__ */ jsxs("dd", {
 														className: "font-mono-nums font-semibold text-[var(--ca-accent)]",
 														children: ["+ ", formatPKR(calc.markupAmount)]
-													}, void 0, true, {
-														fileName: _jsxFileName$16,
-														lineNumber: 407,
-														columnNumber: 27
-													}, this)]
-												}, void 0, true, {
-													fileName: _jsxFileName$16,
-													lineNumber: 403,
-													columnNumber: 25
-												}, this),
-												calc.advancePercent > 0 && /* @__PURE__ */ jsxDEV("div", {
+													})]
+												}),
+												calc.advancePercent > 0 && /* @__PURE__ */ jsxs("div", {
 													className: "flex justify-between",
-													children: [/* @__PURE__ */ jsxDEV("dt", {
+													children: [/* @__PURE__ */ jsxs("dt", {
 														className: "text-[var(--ca-text-muted)]",
 														children: [
 															"Advance (",
 															calc.advancePercent,
 															"%)"
 														]
-													}, void 0, true, {
-														fileName: _jsxFileName$16,
-														lineNumber: 413,
-														columnNumber: 29
-													}, this), /* @__PURE__ */ jsxDEV("dd", {
+													}), /* @__PURE__ */ jsx("dd", {
 														className: "font-mono-nums font-semibold text-[var(--ca-text)]",
 														children: formatPKR(calc.advanceAmount)
-													}, void 0, false, {
-														fileName: _jsxFileName$16,
-														lineNumber: 416,
-														columnNumber: 29
-													}, this)]
-												}, void 0, true, {
-													fileName: _jsxFileName$16,
-													lineNumber: 412,
-													columnNumber: 27
-												}, this),
-												/* @__PURE__ */ jsxDEV("div", {
+													})]
+												}),
+												/* @__PURE__ */ jsxs("div", {
 													className: "flex justify-between",
-													children: [/* @__PURE__ */ jsxDEV("dt", {
+													children: [/* @__PURE__ */ jsxs("dt", {
 														className: "text-[var(--ca-text-muted)]",
 														children: [
 															"Monthly (",
 															calc.months,
 															" months)"
 														]
-													}, void 0, true, {
-														fileName: _jsxFileName$16,
-														lineNumber: 422,
-														columnNumber: 27
-													}, this), /* @__PURE__ */ jsxDEV("dd", {
+													}), /* @__PURE__ */ jsxs("dd", {
 														className: "font-mono-nums font-semibold text-[var(--ca-text)]",
 														children: [formatPKR(calc.monthlyAmount), " / mo"]
-													}, void 0, true, {
-														fileName: _jsxFileName$16,
-														lineNumber: 425,
-														columnNumber: 27
-													}, this)]
-												}, void 0, true, {
-													fileName: _jsxFileName$16,
-													lineNumber: 421,
-													columnNumber: 25
-												}, this),
-												/* @__PURE__ */ jsxDEV("div", {
+													})]
+												}),
+												/* @__PURE__ */ jsxs("div", {
 													className: "flex justify-between pt-2",
-													children: [/* @__PURE__ */ jsxDEV("dt", {
+													children: [/* @__PURE__ */ jsx("dt", {
 														className: "font-medium text-[var(--ca-text)]",
 														children: "Total Payable"
-													}, void 0, false, {
-														fileName: _jsxFileName$16,
-														lineNumber: 430,
-														columnNumber: 27
-													}, this), /* @__PURE__ */ jsxDEV("dd", {
+													}), /* @__PURE__ */ jsx("dd", {
 														className: "font-mono-nums font-bold text-[var(--ca-text)]",
 														children: formatPKR(calc.totalPayable)
-													}, void 0, false, {
-														fileName: _jsxFileName$16,
-														lineNumber: 431,
-														columnNumber: 27
-													}, this)]
-												}, void 0, true, {
-													fileName: _jsxFileName$16,
-													lineNumber: 429,
-													columnNumber: 25
-												}, this)
+													})]
+												})
 											]
-										}, void 0, true, {
-											fileName: _jsxFileName$16,
-											lineNumber: 396,
-											columnNumber: 23
-										}, this),
-										/* @__PURE__ */ jsxDEV("p", {
+										}),
+										/* @__PURE__ */ jsx("p", {
 											className: "mt-2.5 text-[11px] text-[var(--ca-text-muted)]",
 											children: "Requires an active Seller Referral ID at checkout."
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 437,
-											columnNumber: 21
-										}, this)
+										})
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 377,
-									columnNumber: 19
-								}, this)
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 285,
-							columnNumber: 15
-						}, this), /* @__PURE__ */ jsxDEV("div", {
+						}), /* @__PURE__ */ jsxs("div", {
 							className: "flex flex-col gap-2.5 pt-2 sm:flex-row",
-							children: [/* @__PURE__ */ jsxDEV("button", {
+							children: [/* @__PURE__ */ jsx("button", {
 								type: "button",
+								disabled: !stockStatus.isAvailable,
 								onClick: handleAddToBag,
-								className: "btn-press flex-1 rounded-xl border border-[var(--ca-border)] px-4 py-3 text-sm font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
+								className: `flex-1 rounded-xl border border-[var(--ca-border)] px-4 py-3 text-sm font-medium text-[var(--ca-text)] ${stockStatus.isAvailable ? "btn-press hover:bg-[var(--ca-surface-subtle)]" : "cursor-not-allowed opacity-50"}`,
 								children: "Add to Bag"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 445,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("button", {
+							}), /* @__PURE__ */ jsxs("button", {
 								type: "button",
+								disabled: !stockStatus.isAvailable,
 								onClick: handleProceedToCheckout,
-								className: "btn-press inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ca-text)] px-4 py-3 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
-								children: ["Proceed to Checkout", /* @__PURE__ */ jsxDEV(ArrowRight, { className: "h-4 w-4" }, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 458,
-									columnNumber: 19
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$16,
-								lineNumber: 452,
-								columnNumber: 17
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 444,
-							columnNumber: 15
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$16,
-						lineNumber: 284,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$16,
-					lineNumber: 249,
-					columnNumber: 11
-				}, this),
-				step === "checkout" && /* @__PURE__ */ jsxDEV("form", {
+								className: `inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold ${stockStatus.isAvailable ? "btn-press bg-[var(--ca-text)] text-[var(--ca-bg)] hover:opacity-90" : "cursor-not-allowed bg-[var(--ca-surface-subtle)] text-[var(--ca-text-muted)] opacity-60"}`,
+								children: [stockStatus.isAvailable ? "Proceed to Checkout" : t.product.outOfStock, stockStatus.isAvailable && /* @__PURE__ */ jsx(ArrowRight, { className: "h-4 w-4" })]
+							})]
+						})]
+					})]
+				}),
+				step === "checkout" && /* @__PURE__ */ jsxs("form", {
 					onSubmit: handleSubmitOrder,
 					className: "mt-5 space-y-4",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-[var(--ca-surface-subtle)] p-4 text-xs",
-							children: [/* @__PURE__ */ jsxDEV("div", {
+							children: [/* @__PURE__ */ jsxs("div", {
 								className: "flex flex-wrap items-center justify-between gap-2",
-								children: [/* @__PURE__ */ jsxDEV("span", {
+								children: [/* @__PURE__ */ jsxs("span", {
 									className: "font-semibold text-[var(--ca-text)]",
 									children: [
 										product.title,
@@ -2759,23 +2066,11 @@ function PurchaseSheet() {
 										selectedSize,
 										")"
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 469,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("span", {
+								}), /* @__PURE__ */ jsx("span", {
 									className: "font-mono-nums font-bold text-[var(--ca-text)]",
 									children: paymentMethod === "installments" && calc ? `Total ${formatPKR(calc.totalPayable)} (${activePlan?.label})` : `COD Total ${formatPKR(product.price * quantity)}`
-								}, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 472,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$16,
-								lineNumber: 468,
-								columnNumber: 15
-							}, this), paymentMethod === "installments" && calc && /* @__PURE__ */ jsxDEV("p", {
+								})]
+							}), paymentMethod === "installments" && calc && /* @__PURE__ */ jsxs("p", {
 								className: "mt-1 text-[var(--ca-text-muted)]",
 								children: [
 									"Interest ",
@@ -2791,414 +2086,218 @@ function PurchaseSheet() {
 									formatPKR(calc.monthlyAmount),
 									"/mo"
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$16,
-								lineNumber: 479,
-								columnNumber: 17
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 467,
-							columnNumber: 13
-						}, this),
-						submitError && /* @__PURE__ */ jsxDEV("div", {
+							})]
+						}),
+						submitError && /* @__PURE__ */ jsx("div", {
 							role: "alert",
 							className: "ca-shake rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-600 dark:text-red-400",
 							children: submitError
-						}, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 488,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "grid grid-cols-1 gap-4 sm:grid-cols-2",
 							children: [
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Full Name *"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 495,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "text",
 										value: fullName,
 										onChange: (e) => setFullName(e.target.value),
 										placeholder: "Your full name",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 498,
-										columnNumber: 17
-									}, this),
-									formErrors.fullName && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.fullName && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.fullName
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 506,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 494,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Mobile Number *"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 511,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "tel",
 										value: phone,
 										onChange: (e) => setPhone(e.target.value),
 										placeholder: "03355329722",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 514,
-										columnNumber: 17
-									}, this),
-									formErrors.phone && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.phone && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.phone
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 522,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 510,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "WhatsApp Number *"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 527,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "tel",
 										value: whatsapp,
 										onChange: (e) => setWhatsapp(e.target.value),
 										placeholder: "03355329722",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 530,
-										columnNumber: 17
-									}, this),
-									formErrors.whatsapp && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.whatsapp && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.whatsapp
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 538,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 526,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "City *"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 543,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "text",
 										value: city,
 										onChange: (e) => setCity(e.target.value),
 										placeholder: "Peshawar",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 546,
-										columnNumber: 17
-									}, this),
-									formErrors.city && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.city && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.city
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 554,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 542,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", {
 									className: "sm:col-span-2",
 									children: [
-										/* @__PURE__ */ jsxDEV("label", {
+										/* @__PURE__ */ jsx("label", {
 											className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 											children: "Complete Delivery Address *"
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 559,
-											columnNumber: 17
-										}, this),
-										/* @__PURE__ */ jsxDEV("input", {
+										}),
+										/* @__PURE__ */ jsx("input", {
 											type: "text",
 											value: address,
 											onChange: (e) => setAddress(e.target.value),
 											placeholder: "House / Street / Sector",
 											className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 562,
-											columnNumber: 17
-										}, this),
-										formErrors.address && /* @__PURE__ */ jsxDEV("p", {
+										}),
+										formErrors.address && /* @__PURE__ */ jsx("p", {
 											className: "mt-1 text-xs text-red-600 dark:text-red-400",
 											children: formErrors.address
-										}, void 0, false, {
-											fileName: _jsxFileName$16,
-											lineNumber: 570,
-											columnNumber: 19
-										}, this)
+										})
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 558,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+								}),
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Postal Code *"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 575,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "text",
 										value: postalCode,
 										onChange: (e) => setPostalCode(e.target.value),
 										placeholder: "25000",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 578,
-										columnNumber: 17
-									}, this),
-									formErrors.postalCode && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.postalCode && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.postalCode
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 586,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 574,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", { children: [
-									/* @__PURE__ */ jsxDEV("label", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", { children: [
+									/* @__PURE__ */ jsxs("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: ["Seller Referral ID ", paymentMethod === "installments" ? "(Required *)" : "(Optional)"]
-									}, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 591,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("input", {
+									}),
+									/* @__PURE__ */ jsx("input", {
 										type: "text",
 										value: referralCode,
 										onChange: (e) => setReferralCode(e.target.value.toUpperCase()),
 										placeholder: "CA-XXXXXX",
 										className: "font-mono-nums mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm uppercase text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 594,
-										columnNumber: 17
-									}, this),
-									referralState.status === "valid" && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									referralState.status === "valid" && /* @__PURE__ */ jsxs("p", {
 										className: "mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400",
 										children: [
-											/* @__PURE__ */ jsxDEV(ShieldCheck, { className: "h-3.5 w-3.5" }, void 0, false, {
-												fileName: _jsxFileName$16,
-												lineNumber: 603,
-												columnNumber: 21
-											}, this),
+											/* @__PURE__ */ jsx(ShieldCheck, { className: "h-3.5 w-3.5" }),
 											"Verified Seller: ",
 											referralState.sellerName
 										]
-									}, void 0, true, {
-										fileName: _jsxFileName$16,
-										lineNumber: 602,
-										columnNumber: 19
-									}, this),
-									referralState.status === "invalid" && referralCode.trim() && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									referralState.status === "invalid" && referralCode.trim() && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: "Seller ID not recognized or inactive."
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 608,
-										columnNumber: 19
-									}, this),
-									formErrors.referralCode && /* @__PURE__ */ jsxDEV("p", {
+									}),
+									formErrors.referralCode && /* @__PURE__ */ jsx("p", {
 										className: "mt-1 text-xs text-red-600 dark:text-red-400",
 										children: formErrors.referralCode
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 613,
-										columnNumber: 19
-									}, this)
-								] }, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 590,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", {
+									})
+								] }),
+								/* @__PURE__ */ jsxs("div", {
 									className: "sm:col-span-2",
-									children: [/* @__PURE__ */ jsxDEV("label", {
+									children: [/* @__PURE__ */ jsx("label", {
 										className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 										children: "Order Notes"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 620,
-										columnNumber: 17
-									}, this), /* @__PURE__ */ jsxDEV("textarea", {
+									}), /* @__PURE__ */ jsx("textarea", {
 										rows: 2,
 										value: notes,
 										onChange: (e) => setNotes(e.target.value),
 										placeholder: "Tailoring or delivery timing notes...",
 										className: "mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 623,
-										columnNumber: 17
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$16,
-									lineNumber: 619,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("div", {
+									})]
+								}),
+								/* @__PURE__ */ jsx("div", {
 									className: "sm:col-span-2",
-									children: /* @__PURE__ */ jsxDEV(TurnstileField, {
+									children: /* @__PURE__ */ jsx(TurnstileField, {
 										action: "checkout",
 										onToken: setTurnstileToken,
 										honeypot,
 										onHoneypotChange: setHoneypot
-									}, void 0, false, {
-										fileName: _jsxFileName$16,
-										lineNumber: 633,
-										columnNumber: 17
-									}, this)
-								}, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 632,
-									columnNumber: 15
-								}, this)
+									})
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 493,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "flex items-center justify-between gap-3 pt-2",
-							children: [/* @__PURE__ */ jsxDEV("button", {
+							children: [/* @__PURE__ */ jsx("button", {
 								type: "button",
 								onClick: () => setStep("configure"),
 								className: "btn-press min-h-[44px] rounded-xl border border-[var(--ca-border)] px-4 py-2.5 text-sm font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
 								children: "Back"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 643,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV(CAProcessButton, {
+							}), /* @__PURE__ */ jsx(CAProcessButton, {
 								type: "submit",
 								loading: submitting,
 								status: submitStatus,
 								className: "rounded-xl bg-[var(--ca-text)] px-6 py-2.5 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
 								children: "Confirm & Place Order"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 650,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 642,
-							columnNumber: 13
-						}, this)
+							})]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$16,
-					lineNumber: 466,
-					columnNumber: 11
-				}, this),
-				step === "success" && createdOrder && /* @__PURE__ */ jsxDEV("div", {
+				}),
+				step === "success" && createdOrder && /* @__PURE__ */ jsxs("div", {
 					className: "py-8 text-center",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsx("div", {
 							className: "mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-							children: /* @__PURE__ */ jsxDEV(Check, { className: "h-7 w-7" }, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 665,
-								columnNumber: 15
-							}, this)
-						}, void 0, false, {
-							fileName: _jsxFileName$16,
-							lineNumber: 664,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("h3", {
+							children: /* @__PURE__ */ jsx(Check, { className: "h-7 w-7" })
+						}),
+						/* @__PURE__ */ jsxs("h3", {
 							className: "font-display mt-4 text-3xl font-semibold text-[var(--ca-text)]",
 							children: [
 								"Order ",
 								createdOrder.id,
 								" Placed"
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 667,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("p", {
+						}),
+						/* @__PURE__ */ jsxs("p", {
 							className: "mx-auto mt-2 max-w-md text-sm text-[var(--ca-text-muted)]",
 							children: [
 								"Your order is currently ",
-								/* @__PURE__ */ jsxDEV("strong", { children: "Pending" }, void 0, false, {
-									fileName: _jsxFileName$16,
-									lineNumber: 671,
-									columnNumber: 39
-								}, this),
+								/* @__PURE__ */ jsx("strong", { children: "Pending" }),
 								" verification by our Peshawar store.",
 								createdOrder.paymentMethod === "installments" ? ` Installment schedule (${createdOrder.planLabel}) is attached to your order tracker.` : " Cash on Delivery will be collected upon dispatch."
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 670,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "mt-6 flex flex-wrap justify-center gap-3",
-							children: [/* @__PURE__ */ jsxDEV("button", {
+							children: [/* @__PURE__ */ jsx("button", {
 								type: "button",
 								onClick: () => {
 									closeBuySheet();
@@ -3206,46 +2305,18 @@ function PurchaseSheet() {
 								},
 								className: "btn-press rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]",
 								children: "View My Orders"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 677,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("button", {
+							}), /* @__PURE__ */ jsx("button", {
 								type: "button",
 								onClick: closeBuySheet,
 								className: "rounded-xl border border-[var(--ca-border)] px-5 py-2.5 text-sm font-medium text-[var(--ca-text)]",
 								children: "Continue Browsing"
-							}, void 0, false, {
-								fileName: _jsxFileName$16,
-								lineNumber: 687,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$16,
-							lineNumber: 676,
-							columnNumber: 13
-						}, this)
+							})]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$16,
-					lineNumber: 663,
-					columnNumber: 11
-				}, this)
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$16,
-			lineNumber: 228,
-			columnNumber: 9
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName$16,
-		lineNumber: 222,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$16,
-		lineNumber: 220,
-		columnNumber: 5
-	}, this);
+		})
+	})] });
 }
 // src/services/seoService.ts
 var SITE_NAME = STORE_CONFIG.brandName;
@@ -3696,9 +2767,9 @@ function getRouteSeoConfig(pathname, search = "", runtimeOrigin) {
 		noIndex: false,
 		locale
 	};
-	if (basePath === "/orders" || basePath === "/cart" || basePath === "/checkout") return {
-		title: normalizeMetaTitle(`Bag & My Orders — ${STORE_CONFIG.shortName}`),
-		description: normalizeMetaDescription("Manage your shopping bag, track live order status, and inspect monthly PKR installment schedules."),
+	if (basePath === "/orders" || basePath === "/cart" || basePath === "/checkout" || basePath === "/order-confirmed") return {
+		title: normalizeMetaTitle(basePath === "/order-confirmed" ? `Order Confirmed — ${STORE_CONFIG.shortName}` : `Bag & My Orders — ${STORE_CONFIG.shortName}`),
+		description: normalizeMetaDescription(basePath === "/order-confirmed" ? "Your Cinematic Arts order confirmation and reference ID." : "Manage your shopping bag, track live order status, and inspect monthly PKR installment schedules."),
 		canonicalPath: basePath,
 		type: "website",
 		noIndex: true,
@@ -3724,6 +2795,14 @@ function getRouteSeoConfig(pathname, search = "", runtimeOrigin) {
 		title: normalizeMetaTitle(`Admin Portal — ${STORE_CONFIG.shortName}`),
 		description: normalizeMetaDescription("Administration console for Cinematic Arts orders, catalog, analytics, and installment plans."),
 		canonicalPath: "/admin",
+		type: "website",
+		noIndex: true,
+		locale
+	};
+	if (basePath === "/status") return {
+		title: normalizeMetaTitle(`Status — ${STORE_CONFIG.shortName}`),
+		description: normalizeMetaDescription("Backend mode and Supabase connectivity diagnostics."),
+		canonicalPath: "/status",
 		type: "website",
 		noIndex: true,
 		locale
@@ -3931,589 +3010,222 @@ function RouteSeoManager() {
 	return null;
 }
 // src/components/Skeletons.tsx
-var _jsxFileName$15 = "/app/applet/src/components/Skeletons.tsx";
 function ProductGridSkeleton({ count = 6 }) {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsx("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading products",
 		className: "grid grid-cols-2 gap-3 sm:gap-6",
-		children: Array.from({ length: count }).map((_, idx) => /* @__PURE__ */ jsxDEV("div", {
+		children: Array.from({ length: count }).map((_, idx) => /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel overflow-hidden rounded-2xl p-2 sm:p-3",
-			children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer aspect-[4/3] w-full rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 15,
-				columnNumber: 11
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer aspect-[4/3] w-full rounded-xl bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsxs("div", {
 				className: "mt-3 space-y-2 px-1 pb-1 sm:mt-4 sm:space-y-2.5 sm:pb-1.5",
 				children: [
-					/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-24 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 17,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-5 w-4/5 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 18,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", {
+					/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-24 rounded bg-[var(--ca-surface-subtle)]" }),
+					/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-5 w-4/5 rounded bg-[var(--ca-surface-subtle)]" }),
+					/* @__PURE__ */ jsxs("div", {
 						className: "flex items-center justify-between pt-2",
-						children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-4 w-20 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 20,
-							columnNumber: 15
-						}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-9 w-16 rounded-[10px] bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 21,
-							columnNumber: 15
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$15,
-						lineNumber: 19,
-						columnNumber: 13
-					}, this)
+						children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-4 w-20 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-9 w-16 rounded-[10px] bg-[var(--ca-surface-subtle)]" })]
+					})
 				]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 16,
-				columnNumber: 11
-			}, this)]
-		}, idx, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 11,
-			columnNumber: 9
-		}, this))
-	}, void 0, false, {
-		fileName: _jsxFileName$15,
-		lineNumber: 5,
-		columnNumber: 5
-	}, this);
+			})]
+		}, idx))
+	});
 }
 function ProductDetailSkeleton() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading product details",
 		className: "mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12",
-		children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-4 w-32 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-			fileName: _jsxFileName$15,
-			lineNumber: 33,
-			columnNumber: 7
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-4 w-32 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsxs("div", {
 			className: "mt-6 grid grid-cols-1 gap-8 lg:grid-cols-12",
-			children: [/* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsxs("div", {
 				className: "space-y-3 lg:col-span-7",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsx("div", {
 					className: "glass-panel rounded-3xl p-3",
-					children: /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer aspect-[4/3] w-full rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 37,
-						columnNumber: 13
-					}, this)
-				}, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 36,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+					children: /* @__PURE__ */ jsx("div", { className: "ca-shimmer aspect-[4/3] w-full rounded-2xl bg-[var(--ca-surface-subtle)]" })
+				}), /* @__PURE__ */ jsx("div", {
 					className: "flex gap-3",
-					children: Array.from({ length: 3 }).map((_, i) => /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-20 w-24 rounded-2xl bg-[var(--ca-surface-subtle)]" }, i, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 41,
-						columnNumber: 15
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 39,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 35,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+					children: Array.from({ length: 3 }).map((_, i) => /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-20 w-24 rounded-2xl bg-[var(--ca-surface-subtle)]" }, i))
+				})]
+			}), /* @__PURE__ */ jsx("div", {
 				className: "lg:col-span-5",
-				children: /* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsxs("div", {
 					className: "glass-panel space-y-4 rounded-3xl p-6 sm:p-7",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-36 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 50,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-8 w-4/5 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 51,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-7 w-32 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 52,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-36 rounded bg-[var(--ca-surface-subtle)]" }),
+						/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-8 w-4/5 rounded bg-[var(--ca-surface-subtle)]" }),
+						/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-7 w-32 rounded bg-[var(--ca-surface-subtle)]" }),
+						/* @__PURE__ */ jsxs("div", {
 							className: "space-y-2 pt-2",
-							children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3.5 w-full rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-								fileName: _jsxFileName$15,
-								lineNumber: 54,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3.5 w-5/6 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-								fileName: _jsxFileName$15,
-								lineNumber: 55,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$15,
-							lineNumber: 53,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-36 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 57,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+							children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3.5 w-full rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3.5 w-5/6 rounded bg-[var(--ca-surface-subtle)]" })]
+						}),
+						/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-36 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" }),
+						/* @__PURE__ */ jsxs("div", {
 							className: "grid grid-cols-2 gap-3 pt-2",
-							children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-								fileName: _jsxFileName$15,
-								lineNumber: 59,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-								fileName: _jsxFileName$15,
-								lineNumber: 60,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$15,
-							lineNumber: 58,
-							columnNumber: 13
-						}, this)
+							children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" })]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 49,
-					columnNumber: 11
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 48,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 34,
-			columnNumber: 7
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$15,
-		lineNumber: 32,
-		columnNumber: 5
-	}, this);
+				})
+			})]
+		})]
+	});
 }
 function CardListSkeleton({ rows = 3 }) {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsx("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading items",
 		className: "space-y-4",
-		children: Array.from({ length: rows }).map((_, idx) => /* @__PURE__ */ jsxDEV("div", {
+		children: Array.from({ length: rows }).map((_, idx) => /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-3xl p-5 sm:p-6",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", {
+				/* @__PURE__ */ jsxs("div", {
 					className: "flex items-center justify-between gap-4",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-4 w-36 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 75,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-4 w-24 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 76,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 74,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-4 h-3 w-2/3 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 78,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-2 h-3 w-1/2 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 79,
-					columnNumber: 11
-				}, this)
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-4 w-36 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-4 w-24 rounded bg-[var(--ca-surface-subtle)]" })]
+				}),
+				/* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-4 h-3 w-2/3 rounded bg-[var(--ca-surface-subtle)]" }),
+				/* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-2 h-3 w-1/2 rounded bg-[var(--ca-surface-subtle)]" })
 			]
-		}, idx, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 73,
-			columnNumber: 9
-		}, this))
-	}, void 0, false, {
-		fileName: _jsxFileName$15,
-		lineNumber: 71,
-		columnNumber: 5
-	}, this);
+		}, idx))
+	});
 }
 function ProfilePageSkeleton() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading profile",
 		className: "mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 sm:py-12",
 		children: [
-			/* @__PURE__ */ jsxDEV("div", {
+			/* @__PURE__ */ jsxs("div", {
 				className: "glass-panel flex items-center justify-between rounded-3xl p-6",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "flex items-center gap-4",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-14 w-14 rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 91,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-14 w-14 rounded-2xl bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsxs("div", {
 						className: "space-y-2",
-						children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-6 w-48 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 93,
-							columnNumber: 13
-						}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-56 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 94,
-							columnNumber: 13
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$15,
-						lineNumber: 92,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 90,
-					columnNumber: 9
-				}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-10 w-28 rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 97,
-					columnNumber: 9
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 89,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-12 w-full max-w-md rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 99,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+						children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-6 w-48 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-56 rounded bg-[var(--ca-surface-subtle)]" })]
+					})]
+				}), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-10 w-28 rounded-xl bg-[var(--ca-surface-subtle)]" })]
+			}),
+			/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-12 w-full max-w-md rounded-2xl bg-[var(--ca-surface-subtle)]" }),
+			/* @__PURE__ */ jsxs("div", {
 				className: "grid grid-cols-1 gap-6 lg:grid-cols-3",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "glass-panel h-72 rounded-3xl p-6 lg:col-span-2",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-6 w-44 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 102,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-6 w-44 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", {
 						className: "mt-6 grid grid-cols-2 gap-4",
-						children: Array.from({ length: 4 }).map((_, i) => /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" }, i, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 105,
-							columnNumber: 15
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 103,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 101,
-					columnNumber: 9
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+						children: Array.from({ length: 4 }).map((_, i) => /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-12 rounded-xl bg-[var(--ca-surface-subtle)]" }, i))
+					})]
+				}), /* @__PURE__ */ jsxs("div", {
 					className: "glass-panel h-72 rounded-3xl p-6",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-5 w-32 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 110,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-5 w-32 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsxs("div", {
 						className: "mt-4 space-y-3",
-						children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-11 rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 112,
-							columnNumber: 13
-						}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-11 rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-							fileName: _jsxFileName$15,
-							lineNumber: 113,
-							columnNumber: 13
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$15,
-						lineNumber: 111,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 109,
-					columnNumber: 9
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 100,
-				columnNumber: 7
-			}, this)
+						children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-11 rounded-xl bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-11 rounded-xl bg-[var(--ca-surface-subtle)]" })]
+					})]
+				})]
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$15,
-		lineNumber: 88,
-		columnNumber: 5
-	}, this);
+	});
 }
 function NotificationListSkeleton() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsx("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading notifications and support threads",
 		className: "grid grid-cols-1 gap-6 lg:grid-cols-2",
-		children: Array.from({ length: 2 }).map((_, col) => /* @__PURE__ */ jsxDEV("div", {
+		children: Array.from({ length: 2 }).map((_, col) => /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel space-y-4 rounded-3xl p-6",
-			children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-6 w-44 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 126,
-				columnNumber: 11
-			}, this), Array.from({ length: 3 }).map((__, i) => /* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-6 w-44 rounded bg-[var(--ca-surface-subtle)]" }), Array.from({ length: 3 }).map((__, i) => /* @__PURE__ */ jsxs("div", {
 				className: "rounded-xl bg-[var(--ca-surface-subtle)] p-4",
-				children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-4 w-1/2 rounded bg-[var(--ca-surface-solid)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 129,
-					columnNumber: 15
-				}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-2 h-3 w-full rounded bg-[var(--ca-surface-solid)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 130,
-					columnNumber: 15
-				}, this)]
-			}, i, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 128,
-				columnNumber: 13
-			}, this))]
-		}, col, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 125,
-			columnNumber: 9
-		}, this))
-	}, void 0, false, {
-		fileName: _jsxFileName$15,
-		lineNumber: 123,
-		columnNumber: 5
-	}, this);
+				children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-4 w-1/2 rounded bg-[var(--ca-surface-solid)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-2 h-3 w-full rounded bg-[var(--ca-surface-solid)]" })]
+			}, i))]
+		}, col))
+	});
 }
 function SellerDashboardSkeleton() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading seller dashboard",
 		className: "space-y-6",
-		children: [/* @__PURE__ */ jsxDEV("div", {
+		children: [/* @__PURE__ */ jsxs("div", {
 			className: "grid grid-cols-1 gap-4 md:grid-cols-4",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", {
+				/* @__PURE__ */ jsxs("div", {
 					className: "glass-panel h-28 rounded-3xl p-5 md:col-span-2",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-40 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 144,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-3 h-7 w-44 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 145,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 143,
-					columnNumber: 9
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-40 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-3 h-7 w-44 rounded bg-[var(--ca-surface-subtle)]" })]
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "glass-panel h-28 rounded-3xl p-5",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-32 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 148,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-3 h-7 w-28 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 149,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 147,
-					columnNumber: 9
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-32 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-3 h-7 w-28 rounded bg-[var(--ca-surface-subtle)]" })]
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "glass-panel h-28 rounded-3xl p-5",
-					children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-32 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 152,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-3 h-7 w-28 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$15,
-						lineNumber: 153,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$15,
-					lineNumber: 151,
-					columnNumber: 9
-				}, this)
+					children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-32 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-3 h-7 w-28 rounded bg-[var(--ca-surface-subtle)]" })]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 142,
-			columnNumber: 7
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}), /* @__PURE__ */ jsxs("div", {
 			className: "grid grid-cols-1 gap-6 lg:grid-cols-2",
-			children: [/* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsxs("div", {
 				className: "glass-panel h-64 rounded-3xl p-6",
-				children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-6 w-52 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 158,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-5 h-32 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 159,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 157,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-6 w-52 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-5 h-32 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" })]
+			}), /* @__PURE__ */ jsxs("div", {
 				className: "glass-panel h-64 rounded-3xl p-6",
-				children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-6 w-40 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 162,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-5 h-32 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 163,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 161,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 156,
-			columnNumber: 7
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$15,
-		lineNumber: 141,
-		columnNumber: 5
-	}, this);
+				children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-6 w-40 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-5 h-32 w-full rounded-2xl bg-[var(--ca-surface-subtle)]" })]
+			})]
+		})]
+	});
 }
 function AdminWorkspaceSkeleton() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		"aria-busy": "true",
 		"aria-label": "Loading admin workspace",
 		className: "space-y-6",
-		children: [/* @__PURE__ */ jsxDEV("div", {
+		children: [/* @__PURE__ */ jsx("div", {
 			className: "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3",
-			children: Array.from({ length: 6 }).map((_, i) => /* @__PURE__ */ jsxDEV("div", {
+			children: Array.from({ length: 6 }).map((_, i) => /* @__PURE__ */ jsxs("div", {
 				className: "rounded-2xl bg-[var(--ca-surface-solid)] p-4",
-				children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-3 w-28 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 176,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer mt-2.5 h-6 w-36 rounded bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 177,
-					columnNumber: 13
-				}, this)]
-			}, i, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 175,
-				columnNumber: 11
-			}, this))
-		}, void 0, false, {
-			fileName: _jsxFileName$15,
-			lineNumber: 173,
-			columnNumber: 7
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-3 w-28 rounded bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer mt-2.5 h-6 w-36 rounded bg-[var(--ca-surface-subtle)]" })]
+			}, i))
+		}), /* @__PURE__ */ jsxs("div", {
 			className: "grid grid-cols-1 gap-6 md:grid-cols-2",
-			children: [/* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-48 rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 182,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", { className: "ca-shimmer h-48 rounded-2xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 183,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$15,
-			lineNumber: 181,
-			columnNumber: 7
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$15,
-		lineNumber: 172,
-		columnNumber: 5
-	}, this);
+			children: [/* @__PURE__ */ jsx("div", { className: "ca-shimmer h-48 rounded-2xl bg-[var(--ca-surface-subtle)]" }), /* @__PURE__ */ jsx("div", { className: "ca-shimmer h-48 rounded-2xl bg-[var(--ca-surface-subtle)]" })]
+		})]
+	});
 }
-function FriendlyErrorState({ title = "Unable to load content", message, onRetry }) {
-	return /* @__PURE__ */ jsxDEV("div", {
+function FriendlyErrorState({ title, message, referenceId, error, onRetry }) {
+	const normalized = error ? normalizeAppError(error, { fallbackMessage: message }) : null;
+	const resolvedTitle = title || normalized?.title || "Unable to load content";
+	const resolvedMessage = message || normalized?.message || "Please try again in a moment.";
+	const resolvedRef = referenceId || normalized?.referenceId;
+	return /* @__PURE__ */ jsxs("div", {
 		role: "alert",
 		className: "ca-fade-in glass-panel rounded-3xl p-8 text-center",
 		children: [
-			/* @__PURE__ */ jsxDEV("div", {
+			/* @__PURE__ */ jsx("div", {
 				className: "mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-red-500/12 text-red-600 dark:text-red-400",
-				children: /* @__PURE__ */ jsxDEV(AlertCircle, { className: "h-5 w-5" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 201,
-					columnNumber: 9
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 200,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("h3", {
+				children: /* @__PURE__ */ jsx(AlertCircle, { className: "h-5 w-5" })
+			}),
+			/* @__PURE__ */ jsx("h3", {
 				className: "font-display mt-3 text-2xl font-semibold text-[var(--ca-text)]",
-				children: title
-			}, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 203,
-				columnNumber: 7
-			}, this),
-			/* @__PURE__ */ jsxDEV("p", {
+				children: resolvedTitle
+			}),
+			/* @__PURE__ */ jsx("p", {
 				className: "mt-1.5 text-sm text-[var(--ca-text-muted)]",
-				children: message
-			}, void 0, false, {
-				fileName: _jsxFileName$15,
-				lineNumber: 204,
-				columnNumber: 7
-			}, this),
-			onRetry && /* @__PURE__ */ jsxDEV("button", {
-				type: "button",
-				onClick: onRetry,
-				className: "btn-press mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
-				children: [/* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5" }, void 0, false, {
-					fileName: _jsxFileName$15,
-					lineNumber: 211,
-					columnNumber: 11
-				}, this), "Retry"]
-			}, void 0, true, {
-				fileName: _jsxFileName$15,
-				lineNumber: 206,
-				columnNumber: 9
-			}, this)
+				children: resolvedMessage
+			}),
+			resolvedRef && /* @__PURE__ */ jsxs("p", {
+				className: "font-mono-nums mt-3 inline-block rounded-lg bg-[var(--ca-surface-subtle)] px-2.5 py-1 text-[11px] font-medium text-[var(--ca-text-muted)]",
+				children: ["Ref: ", resolvedRef]
+			}),
+			onRetry && /* @__PURE__ */ jsx("div", {
+				className: "mt-5",
+				children: /* @__PURE__ */ jsxs("button", {
+					type: "button",
+					onClick: onRetry,
+					className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
+					children: [/* @__PURE__ */ jsx(RefreshCw, { className: "h-3.5 w-3.5" }), "Retry"]
+				})
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$15,
-		lineNumber: 199,
-		columnNumber: 5
-	}, this);
+	});
 }
 // src/components/InstallmentCalculator.tsx
-var _jsxFileName$14 = "/app/applet/src/components/InstallmentCalculator.tsx";
 function InstallmentCalculator({ products: propProducts, plans: propPlans, initialProductId }) {
 	const { openBuySheet } = useCart();
 	const [products, setProducts] = useState(propProducts || []);
@@ -4572,181 +3284,89 @@ function InstallmentCalculator({ products: propProducts, plans: propPlans, initi
 		unitPrice,
 		effectiveQty
 	]);
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsxs("div", {
 		"data-testid": "installment-calculator",
 		className: "glass-panel rounded-2xl p-6 sm:p-8 space-y-6",
-		children: [/* @__PURE__ */ jsxDEV("div", {
+		children: [/* @__PURE__ */ jsxs("div", {
 			className: "flex flex-wrap items-center justify-between gap-4",
-			children: [/* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsxs("div", {
 				className: "flex items-center gap-2.5",
-				children: [/* @__PURE__ */ jsxDEV(Calculator, { className: "h-5 w-5 text-[var(--ca-accent)]" }, void 0, false, {
-					fileName: _jsxFileName$14,
-					lineNumber: 104,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("h3", {
+				children: [/* @__PURE__ */ jsx(Calculator, { className: "h-5 w-5 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("h3", {
 					className: "font-display text-2xl font-semibold text-[var(--ca-text)] sm:text-3xl",
 					children: "Installment Calculator"
-				}, void 0, false, {
-					fileName: _jsxFileName$14,
-					lineNumber: 105,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$14,
-				lineNumber: 103,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+				})]
+			}), /* @__PURE__ */ jsxs("div", {
 				className: "inline-flex rounded-xl bg-[var(--ca-surface-subtle)] p-1 text-xs font-semibold",
-				children: [/* @__PURE__ */ jsxDEV("button", {
+				children: [/* @__PURE__ */ jsx("button", {
 					type: "button",
 					onClick: () => setInputMode("product"),
 					className: `rounded-lg px-3 py-1.5 transition-colors ${inputMode === "product" ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 					children: "Select Product"
-				}, void 0, false, {
-					fileName: _jsxFileName$14,
-					lineNumber: 111,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("button", {
+				}), /* @__PURE__ */ jsx("button", {
 					type: "button",
 					onClick: () => setInputMode("custom"),
 					className: `rounded-lg px-3 py-1.5 transition-colors ${inputMode === "custom" ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 					children: "Custom PKR Amount"
-				}, void 0, false, {
-					fileName: _jsxFileName$14,
-					lineNumber: 122,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$14,
-				lineNumber: 110,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$14,
-			lineNumber: 102,
-			columnNumber: 7
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+				})]
+			})]
+		}), /* @__PURE__ */ jsxs("div", {
 			className: "grid grid-cols-1 gap-6 lg:grid-cols-12",
-			children: [/* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsxs("div", {
 				className: "space-y-4 lg:col-span-5",
 				children: [
-					inputMode === "product" && products.length > 0 ? /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("label", {
+					inputMode === "product" && products.length > 0 ? /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("label", {
 						htmlFor: "calc-product-select",
 						className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 						children: "Choose Product"
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 142,
-						columnNumber: 17
-					}, this), /* @__PURE__ */ jsxDEV("select", {
+					}), /* @__PURE__ */ jsx("select", {
 						id: "calc-product-select",
 						value: selectedProduct?.id || "",
 						onChange: (e) => setSelectedProductId(e.target.value),
 						className: "mt-1.5 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none",
-						children: products.map((p) => /* @__PURE__ */ jsxDEV("option", {
+						children: products.map((p) => /* @__PURE__ */ jsxs("option", {
 							value: p.id,
 							children: [
 								p.title,
 								" — ",
 								formatPKR(p.price)
 							]
-						}, p.id, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 155,
-							columnNumber: 21
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 148,
-						columnNumber: 17
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 141,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+						}, p.id))
+					})] }), /* @__PURE__ */ jsxs("div", {
 						className: "flex items-center justify-between gap-4 rounded-xl bg-[var(--ca-surface-subtle)] px-4 py-3",
-						children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+						children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 							className: "block text-xs text-[var(--ca-text-muted)]",
 							children: "Quantity"
-						}, void 0, false, {
-							fileName: _jsxFileName$14,
-							lineNumber: 164,
-							columnNumber: 19
-						}, this), /* @__PURE__ */ jsxDEV("span", {
+						}), /* @__PURE__ */ jsxs("span", {
 							className: "font-mono-nums text-sm font-semibold text-[var(--ca-text)]",
 							children: ["Cash price: ", formatPKR(unitPrice * effectiveQty)]
-						}, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 165,
-							columnNumber: 19
-						}, this)] }, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 163,
-							columnNumber: 17
-						}, this), /* @__PURE__ */ jsxDEV("div", {
+						})] }), /* @__PURE__ */ jsxs("div", {
 							className: "inline-flex items-center rounded-xl bg-[var(--ca-surface-solid)]",
 							children: [
-								/* @__PURE__ */ jsxDEV("button", {
+								/* @__PURE__ */ jsx("button", {
 									type: "button",
 									onClick: () => setQuantity((q) => Math.max(1, q - 1)),
 									"aria-label": "Calculator decrease quantity",
 									className: "p-2 text-[var(--ca-text)] hover:opacity-70",
-									children: /* @__PURE__ */ jsxDEV(Minus, { className: "h-3.5 w-3.5" }, void 0, false, {
-										fileName: _jsxFileName$14,
-										lineNumber: 176,
-										columnNumber: 21
-									}, this)
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 170,
-									columnNumber: 19
-								}, this),
-								/* @__PURE__ */ jsxDEV("span", {
+									children: /* @__PURE__ */ jsx(Minus, { className: "h-3.5 w-3.5" })
+								}),
+								/* @__PURE__ */ jsx("span", {
 									className: "font-mono-nums min-w-[2rem] text-center text-sm font-semibold",
 									children: quantity
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 178,
-									columnNumber: 19
-								}, this),
-								/* @__PURE__ */ jsxDEV("button", {
+								}),
+								/* @__PURE__ */ jsx("button", {
 									type: "button",
 									onClick: () => setQuantity((q) => Math.min(20, q + 1)),
 									"aria-label": "Calculator increase quantity",
 									className: "p-2 text-[var(--ca-text)] hover:opacity-70",
-									children: /* @__PURE__ */ jsxDEV(Plus, { className: "h-3.5 w-3.5" }, void 0, false, {
-										fileName: _jsxFileName$14,
-										lineNumber: 187,
-										columnNumber: 21
-									}, this)
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 181,
-									columnNumber: 19
-								}, this)
+									children: /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" })
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 169,
-							columnNumber: 17
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 162,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 140,
-						columnNumber: 13
-					}, this) : /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("label", {
+						})]
+					})] }) : /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("label", {
 						htmlFor: "calc-custom-amount",
 						className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 						children: "Enter Product Price (PKR)"
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 194,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("input", {
+					}), /* @__PURE__ */ jsx("input", {
 						id: "calc-custom-amount",
 						type: "number",
 						min: 0,
@@ -4755,61 +3375,29 @@ function InstallmentCalculator({ products: propProducts, plans: propPlans, initi
 						onChange: (e) => setCustomAmount(e.target.value),
 						placeholder: "10000",
 						className: "font-mono-nums mt-1.5 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-base font-semibold text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 200,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 193,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+					})] }),
+					/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 						className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 						children: "Installment Duration & Interest Rate"
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 215,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					}), /* @__PURE__ */ jsx("div", {
 						className: "mt-2 grid grid-cols-3 gap-2",
 						children: plans.map((p) => {
 							const selected = activePlan?.id === p.id;
-							return /* @__PURE__ */ jsxDEV("button", {
+							return /* @__PURE__ */ jsxs("button", {
 								type: "button",
 								onClick: () => setSelectedPlanId(p.id),
 								className: `rounded-xl border px-3 py-2.5 text-left transition-all ${selected ? "border-[var(--ca-accent)] bg-[var(--ca-accent)] text-[var(--ca-accent-fg)] shadow-sm" : "border-[var(--ca-border)] bg-[var(--ca-surface-solid)] text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"}`,
-								children: [/* @__PURE__ */ jsxDEV("span", {
+								children: [/* @__PURE__ */ jsx("span", {
 									className: "block text-xs font-bold",
 									children: p.label
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 232,
-									columnNumber: 21
-								}, this), /* @__PURE__ */ jsxDEV("span", {
+								}), /* @__PURE__ */ jsxs("span", {
 									className: `font-mono-nums text-[11px] ${selected ? "opacity-90" : "text-[var(--ca-text-muted)]"}`,
 									children: [p.markupPercent, "% interest"]
-								}, void 0, true, {
-									fileName: _jsxFileName$14,
-									lineNumber: 233,
-									columnNumber: 21
-								}, this)]
-							}, p.id, true, {
-								fileName: _jsxFileName$14,
-								lineNumber: 222,
-								columnNumber: 19
-							}, this);
+								})]
+							}, p.id);
 						})
-					}, void 0, false, {
-						fileName: _jsxFileName$14,
-						lineNumber: 218,
-						columnNumber: 13
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 214,
-						columnNumber: 11
-					}, this),
-					inputMode === "product" && selectedProduct && activePlan && /* @__PURE__ */ jsxDEV("button", {
+					})] }),
+					inputMode === "product" && selectedProduct && activePlan && /* @__PURE__ */ jsxs("button", {
 						type: "button",
 						onClick: () => openBuySheet(selectedProduct, quantity, selectedProduct.sizes?.[0] || "One Size", {
 							paymentMethod: "installments",
@@ -4817,245 +3405,121 @@ function InstallmentCalculator({ products: propProducts, plans: propPlans, initi
 						}),
 						className: "btn-press inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ca-text)] px-4 py-3 text-xs font-semibold text-[var(--ca-bg)] hover:opacity-90",
 						children: [
-							/* @__PURE__ */ jsxDEV(ShoppingBag, { className: "h-3.5 w-3.5" }, void 0, false, {
-								fileName: _jsxFileName$14,
-								lineNumber: 259,
-								columnNumber: 15
-							}, this),
+							/* @__PURE__ */ jsx(ShoppingBag, { className: "h-3.5 w-3.5" }),
 							"Buy ",
 							selectedProduct.title,
 							" on ",
 							activePlan.label
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 247,
-						columnNumber: 13
-					}, this)
+					})
 				]
-			}, void 0, true, {
-				fileName: _jsxFileName$14,
-				lineNumber: 138,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV("div", {
+			}), /* @__PURE__ */ jsxs("div", {
 				className: "space-y-4 lg:col-span-7",
-				children: [activeCalc && activePlan && /* @__PURE__ */ jsxDEV("div", {
+				children: [activeCalc && activePlan && /* @__PURE__ */ jsxs("div", {
 					className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
-					children: [/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsxs("div", {
 						className: "flex flex-wrap items-baseline justify-between gap-2 pb-3",
-						children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+						children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsxs("span", {
 							className: "text-xs font-medium text-[var(--ca-text-muted)]",
 							children: [
 								"Selected Plan (",
 								activePlan.label,
 								")"
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 271,
-							columnNumber: 19
-						}, this), /* @__PURE__ */ jsxDEV("p", {
+						}), /* @__PURE__ */ jsx("p", {
 							className: "font-mono-nums mt-0.5 text-2xl font-bold text-[var(--ca-text)]",
 							children: formatPKR(activeCalc.totalPayable)
-						}, void 0, false, {
-							fileName: _jsxFileName$14,
-							lineNumber: 274,
-							columnNumber: 19
-						}, this)] }, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 270,
-							columnNumber: 17
-						}, this), /* @__PURE__ */ jsxDEV("div", {
+						})] }), /* @__PURE__ */ jsxs("div", {
 							className: "text-right",
-							children: [/* @__PURE__ */ jsxDEV("span", {
+							children: [/* @__PURE__ */ jsx("span", {
 								className: "text-xs text-[var(--ca-text-muted)]",
 								children: "Monthly Installment"
-							}, void 0, false, {
-								fileName: _jsxFileName$14,
-								lineNumber: 279,
-								columnNumber: 19
-							}, this), /* @__PURE__ */ jsxDEV("p", {
+							}), /* @__PURE__ */ jsxs("p", {
 								className: "font-mono-nums text-lg font-bold text-[var(--ca-accent)]",
 								children: [
 									formatPKR(activeCalc.monthlyAmount),
 									" / mo × ",
 									activeCalc.months
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$14,
-								lineNumber: 280,
-								columnNumber: 19
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 278,
-							columnNumber: 17
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 269,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("dl", {
+							})]
+						})]
+					}), /* @__PURE__ */ jsxs("dl", {
 						className: "mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3",
 						children: [
-							/* @__PURE__ */ jsxDEV("div", {
+							/* @__PURE__ */ jsxs("div", {
 								className: "rounded-xl bg-[var(--ca-surface-solid)] p-3",
-								children: [/* @__PURE__ */ jsxDEV("dt", {
+								children: [/* @__PURE__ */ jsx("dt", {
 									className: "text-[var(--ca-text-muted)]",
 									children: "Base Product Price"
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 288,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("dd", {
+								}), /* @__PURE__ */ jsx("dd", {
 									className: "font-mono-nums mt-1 font-semibold text-[var(--ca-text)]",
 									children: formatPKR(activeCalc.subtotal)
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 289,
-									columnNumber: 19
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$14,
-								lineNumber: 287,
-								columnNumber: 17
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+								})]
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "rounded-xl bg-[var(--ca-surface-solid)] p-3",
-								children: [/* @__PURE__ */ jsxDEV("dt", {
+								children: [/* @__PURE__ */ jsxs("dt", {
 									className: "text-[var(--ca-text-muted)]",
 									children: [
 										"Interest (",
 										activeCalc.markupPercent,
 										"%)"
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$14,
-									lineNumber: 294,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("dd", {
+								}), /* @__PURE__ */ jsxs("dd", {
 									className: "font-mono-nums mt-1 font-semibold text-[var(--ca-accent)]",
 									children: ["+ ", formatPKR(activeCalc.markupAmount)]
-								}, void 0, true, {
-									fileName: _jsxFileName$14,
-									lineNumber: 297,
-									columnNumber: 19
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$14,
-								lineNumber: 293,
-								columnNumber: 17
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+								})]
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "rounded-xl bg-[var(--ca-surface-solid)] p-3 col-span-2 sm:col-span-1",
-								children: [/* @__PURE__ */ jsxDEV("dt", {
+								children: [/* @__PURE__ */ jsx("dt", {
 									className: "text-[var(--ca-text-muted)]",
 									children: activeCalc.advancePercent > 0 ? `Advance (${activeCalc.advancePercent}%)` : "Advance Required"
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 302,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("dd", {
+								}), /* @__PURE__ */ jsx("dd", {
 									className: "font-mono-nums mt-1 font-semibold text-[var(--ca-text)]",
 									children: activeCalc.advancePercent > 0 ? formatPKR(activeCalc.advanceAmount) : "PKR 0 (0%)"
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 307,
-									columnNumber: 19
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$14,
-								lineNumber: 301,
-								columnNumber: 17
-							}, this)
+								})]
+							})
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$14,
-						lineNumber: 286,
-						columnNumber: 15
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$14,
-					lineNumber: 268,
-					columnNumber: 13
-				}, this), comparisons.length > 0 && /* @__PURE__ */ jsxDEV("div", {
+					})]
+				}), comparisons.length > 0 && /* @__PURE__ */ jsx("div", {
 					className: "grid grid-cols-1 gap-2.5 sm:grid-cols-3",
 					children: comparisons.map(({ plan, calc }) => {
 						const isSelected = activePlan?.id === plan.id;
-						return /* @__PURE__ */ jsxDEV("button", {
+						return /* @__PURE__ */ jsxs("button", {
 							type: "button",
 							onClick: () => setSelectedPlanId(plan.id),
 							className: `rounded-xl p-3.5 text-left transition-all ${isSelected ? "bg-[var(--ca-accent)]/12 ring-1 ring-[var(--ca-accent)]" : "bg-[var(--ca-surface-subtle)] hover:bg-[var(--ca-surface-subtle)]/80"}`,
 							children: [
-								/* @__PURE__ */ jsxDEV("div", {
+								/* @__PURE__ */ jsxs("div", {
 									className: "flex items-center justify-between text-xs",
-									children: [/* @__PURE__ */ jsxDEV("span", {
+									children: [/* @__PURE__ */ jsx("span", {
 										className: "font-semibold text-[var(--ca-text)]",
 										children: plan.label
-									}, void 0, false, {
-										fileName: _jsxFileName$14,
-										lineNumber: 332,
-										columnNumber: 23
-									}, this), /* @__PURE__ */ jsxDEV("span", {
+									}), /* @__PURE__ */ jsxs("span", {
 										className: "font-mono-nums font-semibold text-[var(--ca-accent)]",
 										children: [plan.markupPercent, "%"]
-									}, void 0, true, {
-										fileName: _jsxFileName$14,
-										lineNumber: 333,
-										columnNumber: 23
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$14,
-									lineNumber: 331,
-									columnNumber: 21
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+									})]
+								}),
+								/* @__PURE__ */ jsx("p", {
 									className: "font-mono-nums mt-1.5 text-sm font-bold text-[var(--ca-text)]",
 									children: formatPKR(calc.totalPayable)
-								}, void 0, false, {
-									fileName: _jsxFileName$14,
-									lineNumber: 337,
-									columnNumber: 21
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+								}),
+								/* @__PURE__ */ jsxs("p", {
 									className: "font-mono-nums mt-0.5 text-[11px] text-[var(--ca-text-muted)]",
 									children: [
 										formatPKR(calc.monthlyAmount),
 										" / mo · +",
 										formatPKR(calc.markupAmount)
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$14,
-									lineNumber: 340,
-									columnNumber: 21
-								}, this)
+								})
 							]
-						}, plan.id, true, {
-							fileName: _jsxFileName$14,
-							lineNumber: 321,
-							columnNumber: 19
-						}, this);
+						}, plan.id);
 					})
-				}, void 0, false, {
-					fileName: _jsxFileName$14,
-					lineNumber: 317,
-					columnNumber: 13
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$14,
-				lineNumber: 266,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$14,
-			lineNumber: 136,
-			columnNumber: 7
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$14,
-		lineNumber: 98,
-		columnNumber: 5
-	}, this);
+				})]
+			})]
+		})]
+	});
 }
 // src/components/SeoHead.tsx
 function SeoHead({ title, description, canonicalPath, image, type = "website", noIndex = false, locale, productMeta, jsonLd }) {
@@ -5168,7 +3632,6 @@ function deriveActiveCategoryCards(categories, products) {
 	return orderedCards;
 }
 // src/pages/HomePage.tsx
-var _jsxFileName$13 = "/app/applet/src/pages/HomePage.tsx";
 function HomePage({ onNetworkError }) {
 	const { theme, toggleTheme } = useTheme();
 	const { t, locale, isRtl, localize } = useLocale();
@@ -5208,387 +3671,176 @@ function HomePage({ onNetworkError }) {
 		buildLocalBusinessJsonLd(origin),
 		buildFaqPageJsonLd(locale)
 	], [origin, locale]);
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [
-		/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [
+		/* @__PURE__ */ jsx(SeoHead, {
 			title: locale === "ur" ? "سنیماٹک آرٹس — ملبوسات، ان سٹچڈ سوٹ اور اقساط" : "Cinematic Arts (CA) — Clothing & PKR Installments",
 			description: t.hero.subtitle,
 			canonicalPath: localize("/"),
 			locale,
 			jsonLd: homeJsonLd
-		}, void 0, false, {
-			fileName: _jsxFileName$13,
-			lineNumber: 90,
-			columnNumber: 7
-		}, this),
-		/* @__PURE__ */ jsxDEV("section", {
+		}),
+		/* @__PURE__ */ jsx("section", {
 			className: "mx-auto max-w-6xl px-4 pt-6 pb-12 sm:px-6 sm:pt-10",
-			children: /* @__PURE__ */ jsxDEV("div", {
+			children: /* @__PURE__ */ jsxs("div", {
 				className: "glass-panel overflow-hidden rounded-2xl p-6 sm:p-8 lg:p-10",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "grid grid-cols-1 items-center gap-8 lg:grid-cols-12",
-					children: [/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsxs("div", {
 						className: "flex flex-col justify-between lg:col-span-5",
 						children: [
-							/* @__PURE__ */ jsxDEV("div", {
+							/* @__PURE__ */ jsxs("div", {
 								className: "flex items-center justify-between gap-4",
-								children: [/* @__PURE__ */ jsxDEV("span", {
+								children: [/* @__PURE__ */ jsx("span", {
 									className: "text-xs font-medium text-[var(--ca-text-muted)]",
 									children: t.locationShort
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 108,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("button", {
+								}), /* @__PURE__ */ jsxs("button", {
 									type: "button",
 									onClick: toggleTheme,
 									"aria-label": theme === "light" ? t.footer.darkMode : t.footer.lightMode,
 									className: "inline-flex min-h-[44px] items-center gap-1.5 rounded-[10px] bg-[var(--ca-surface-subtle)] px-3.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:opacity-85",
-									children: [theme === "light" ? /* @__PURE__ */ jsxDEV(Moon, { className: "h-3.5 w-3.5" }, void 0, false, {
-										fileName: _jsxFileName$13,
-										lineNumber: 117,
-										columnNumber: 40
-									}, this) : /* @__PURE__ */ jsxDEV(Sun, { className: "h-3.5 w-3.5" }, void 0, false, {
-										fileName: _jsxFileName$13,
-										lineNumber: 117,
-										columnNumber: 75
-									}, this), /* @__PURE__ */ jsxDEV("span", { children: theme === "light" ? t.footer.darkMode : t.footer.lightMode }, void 0, false, {
-										fileName: _jsxFileName$13,
-										lineNumber: 118,
-										columnNumber: 19
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$13,
-									lineNumber: 111,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 107,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+									children: [theme === "light" ? /* @__PURE__ */ jsx(Moon, { className: "h-3.5 w-3.5" }) : /* @__PURE__ */ jsx(Sun, { className: "h-3.5 w-3.5" }), /* @__PURE__ */ jsx("span", { children: theme === "light" ? t.footer.darkMode : t.footer.lightMode })]
+								})]
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "mt-6",
-								children: [/* @__PURE__ */ jsxDEV("h1", {
+								children: [/* @__PURE__ */ jsx("h1", {
 									className: `font-display text-4xl font-semibold text-[var(--ca-text)] sm:text-5xl ${isRtl ? "leading-[1.85] sm:leading-[1.8]" : "leading-[1.1]"}`,
 									children: t.hero.title
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 123,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("p", {
+								}), /* @__PURE__ */ jsx("p", {
 									className: "mt-4 max-w-md text-base leading-relaxed text-[var(--ca-text-muted)]",
 									children: t.hero.subtitle
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 130,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 122,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+								})]
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "mt-8 flex flex-wrap items-center gap-3",
-								children: [/* @__PURE__ */ jsxDEV(Link, {
+								children: [/* @__PURE__ */ jsxs(Link, {
 									to: localize("/shop"),
 									className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
-									children: [t.hero.shopCollection, /* @__PURE__ */ jsxDEV(ArrowIcon, { className: "h-4 w-4" }, void 0, false, {
-										fileName: _jsxFileName$13,
-										lineNumber: 141,
-										columnNumber: 19
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$13,
-									lineNumber: 136,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("a", {
+									children: [t.hero.shopCollection, /* @__PURE__ */ jsx(ArrowIcon, { className: "h-4 w-4" })]
+								}), /* @__PURE__ */ jsx("a", {
 									href: "#installments",
 									className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-3 text-sm font-medium text-[var(--ca-text)] hover:opacity-85",
 									children: t.hero.installmentPlans
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 143,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 135,
-								columnNumber: 15
-							}, this)
+								})]
+							})
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 106,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					}), /* @__PURE__ */ jsx("div", {
 						className: "lg:col-span-7",
-						children: /* @__PURE__ */ jsxDEV("div", {
+						children: /* @__PURE__ */ jsx("div", {
 							className: "aspect-[4/3] w-full overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)]",
-							children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+							children: /* @__PURE__ */ jsx(ResilientImage, {
 								src: "/src/assets/images/womens_unstitched_suit_1795333234539.jpg",
 								alt: "Women's unstitched embroidered 3-piece clothing fabric at Cinematic Arts Peshawar",
 								width: 900,
 								height: 675,
 								priority: true,
 								className: "h-full w-full object-cover"
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 154,
-								columnNumber: 17
-							}, this)
-						}, void 0, false, {
-							fileName: _jsxFileName$13,
-							lineNumber: 153,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 152,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 105,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+							})
+						})
+					})]
+				}), /* @__PURE__ */ jsxs("div", {
 					className: "mt-10 grid grid-cols-1 gap-5 sm:grid-cols-3",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsxs("div", {
 							className: "flex items-start gap-3",
-							children: [/* @__PURE__ */ jsxDEV(Truck, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 168,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							children: [/* @__PURE__ */ jsx(Truck, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-sm font-semibold text-[var(--ca-text)]",
 								children: t.hero.codTitle
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 170,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("p", {
+							}), /* @__PURE__ */ jsx("p", {
 								className: "mt-0.5 text-xs leading-relaxed text-[var(--ca-text-muted)]",
 								children: t.hero.codDesc
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 171,
-								columnNumber: 17
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 169,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 167,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+							})] })]
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "flex items-start gap-3",
-							children: [/* @__PURE__ */ jsxDEV(CreditCard, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 177,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							children: [/* @__PURE__ */ jsx(CreditCard, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-sm font-semibold text-[var(--ca-text)]",
 								children: t.hero.plansTitle
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 179,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("p", {
+							}), /* @__PURE__ */ jsx("p", {
 								className: "mt-0.5 text-xs leading-relaxed text-[var(--ca-text-muted)]",
 								children: t.hero.plansDesc
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 180,
-								columnNumber: 17
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 178,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 176,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+							})] })]
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "flex items-start gap-3",
-							children: [/* @__PURE__ */ jsxDEV(ShieldCheck, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 186,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("p", {
+							children: [/* @__PURE__ */ jsx(ShieldCheck, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("p", {
 								className: "text-sm font-semibold text-[var(--ca-text)]",
 								children: t.hero.exchangeTitle
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 188,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("p", {
+							}), /* @__PURE__ */ jsx("p", {
 								className: "mt-0.5 text-xs leading-relaxed text-[var(--ca-text-muted)]",
 								children: t.hero.exchangeDesc
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 189,
-								columnNumber: 17
-							}, this)] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 187,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 185,
-							columnNumber: 13
-						}, this)
+							})] })]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 166,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$13,
-				lineNumber: 104,
-				columnNumber: 9
-			}, this)
-		}, void 0, false, {
-			fileName: _jsxFileName$13,
-			lineNumber: 103,
-			columnNumber: 7
-		}, this),
-		/* @__PURE__ */ jsxDEV("section", {
+				})]
+			})
+		}),
+		/* @__PURE__ */ jsxs("section", {
 			ref: catalogRevealRef,
 			className: "ca-reveal mx-auto max-w-6xl px-4 py-8 sm:px-6",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", {
+				/* @__PURE__ */ jsxs("div", {
 					className: "flex flex-wrap items-end justify-between gap-4",
-					children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-4xl",
 						children: t.home.featuredProducts
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 201,
-						columnNumber: 11
-					}, this), /* @__PURE__ */ jsxDEV(Link, {
+					}), /* @__PURE__ */ jsxs(Link, {
 						to: localize("/shop"),
 						className: "inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-[var(--ca-accent)] hover:underline",
 						children: [
 							t.home.viewAllProducts,
 							" ",
-							/* @__PURE__ */ jsxDEV(ArrowIcon, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 208,
-								columnNumber: 38
-							}, this)
+							/* @__PURE__ */ jsx(ArrowIcon, { className: "h-4 w-4" })
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 204,
-						columnNumber: 11
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 200,
-					columnNumber: 9
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+					})]
+				}),
+				/* @__PURE__ */ jsx("div", {
 					className: "mt-6",
-					children: loading ? /* @__PURE__ */ jsxDEV(ProductGridSkeleton, { count: 6 }, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 214,
-						columnNumber: 13
-					}, this) : error ? /* @__PURE__ */ jsxDEV(FriendlyErrorState, {
+					children: loading ? /* @__PURE__ */ jsx(ProductGridSkeleton, { count: 6 }) : error ? /* @__PURE__ */ jsx(FriendlyErrorState, {
 						title: "Could not load featured products",
 						message: error,
+						error: queryError,
 						onRetry: () => refetch()
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 216,
-						columnNumber: 13
-					}, this) : products.length === 0 ? /* @__PURE__ */ jsxDEV("div", {
+					}) : products.length === 0 ? /* @__PURE__ */ jsxs("div", {
 						className: "glass-panel rounded-2xl p-8 text-center",
-						children: [/* @__PURE__ */ jsxDEV("p", {
+						children: [/* @__PURE__ */ jsx("p", {
 							className: "font-display text-xl font-semibold text-[var(--ca-text)]",
 							children: t.home.noProductsTitle
-						}, void 0, false, {
-							fileName: _jsxFileName$13,
-							lineNumber: 223,
-							columnNumber: 15
-						}, this), /* @__PURE__ */ jsxDEV("p", {
+						}), /* @__PURE__ */ jsx("p", {
 							className: "mt-1.5 text-sm text-[var(--ca-text-muted)]",
 							children: t.home.noProductsDesc
-						}, void 0, false, {
-							fileName: _jsxFileName$13,
-							lineNumber: 226,
-							columnNumber: 15
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 222,
-						columnNumber: 13
-					}, this) : /* @__PURE__ */ jsxDEV("div", {
+						})]
+					}) : /* @__PURE__ */ jsx("div", {
 						className: "ca-fade-in grid grid-cols-2 gap-3 sm:gap-6",
-						children: products.map((product) => /* @__PURE__ */ jsxDEV(ProductCard, { product }, product.id, false, {
-							fileName: _jsxFileName$13,
-							lineNumber: 233,
-							columnNumber: 17
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 231,
-						columnNumber: 13
-					}, this)
-				}, void 0, false, {
-					fileName: _jsxFileName$13,
-					lineNumber: 212,
-					columnNumber: 9
-				}, this),
-				!loading && !error && activeCategoryCards.length > 0 && /* @__PURE__ */ jsxDEV("div", {
+						children: products.map((product) => /* @__PURE__ */ jsx(ProductCard, { product }, product.id))
+					})
+				}),
+				!loading && !error && activeCategoryCards.length > 0 && /* @__PURE__ */ jsxs("div", {
 					className: "mt-16",
-					children: [/* @__PURE__ */ jsxDEV("h3", {
+					children: [/* @__PURE__ */ jsx("h3", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)] sm:text-3xl",
 						children: t.home.shopByCategory
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 242,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					}), /* @__PURE__ */ jsx("div", {
 						className: "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4",
-						children: activeCategoryCards.map((cat) => /* @__PURE__ */ jsxDEV(Link, {
+						children: activeCategoryCards.map((cat) => /* @__PURE__ */ jsxs(Link, {
 							to: localize(`/category/${cat.slug}`),
 							className: "glass-panel group overflow-hidden rounded-2xl p-2.5 transition-transform duration-200 hover:-translate-y-0.5 sm:p-3",
 							children: [
-								/* @__PURE__ */ jsxDEV("div", {
+								/* @__PURE__ */ jsx("div", {
 									className: "aspect-[4/3] overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)]",
-									children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+									children: /* @__PURE__ */ jsx(ResilientImage, {
 										src: cat.image,
 										alt: `${cat.name} — ${cat.latestProductTitle || "Cinematic Arts"}`,
 										width: 400,
 										height: 300,
 										className: "h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-									}, void 0, false, {
-										fileName: _jsxFileName$13,
-										lineNumber: 253,
-										columnNumber: 21
-									}, this)
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 252,
-									columnNumber: 19
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+									})
+								}),
+								/* @__PURE__ */ jsx("p", {
 									className: "mt-2.5 text-sm font-semibold text-[var(--ca-text)]",
 									children: cat.name
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 261,
-									columnNumber: 19
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+								}),
+								/* @__PURE__ */ jsxs("p", {
 									className: "mt-0.5 line-clamp-1 text-xs text-[var(--ca-text-muted)]",
 									children: [
 										cat.productCount,
@@ -5598,347 +3850,157 @@ function HomePage({ onNetworkError }) {
 										" ",
 										cat.latestProductTitle
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$13,
-									lineNumber: 264,
-									columnNumber: 19
-								}, this)
+								})
 							]
-						}, cat.id, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 247,
-							columnNumber: 17
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 245,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 241,
-					columnNumber: 11
-				}, this)
+						}, cat.id))
+					})]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$13,
-			lineNumber: 199,
-			columnNumber: 7
-		}, this),
-		/* @__PURE__ */ jsxDEV("section", {
+		}),
+		/* @__PURE__ */ jsxs("section", {
 			ref: installmentsRevealRef,
 			id: "installments",
 			className: "ca-reveal mx-auto max-w-6xl space-y-6 px-4 py-12 sm:px-6",
-			children: [/* @__PURE__ */ jsxDEV("div", {
+			children: [/* @__PURE__ */ jsxs("div", {
 				className: "grid grid-cols-1 gap-6 lg:grid-cols-2",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "glass-panel flex flex-col justify-between rounded-2xl p-6 sm:p-8",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-3xl font-semibold text-[var(--ca-text)]",
 						children: t.home.aboutTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 280,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("p", {
+					}), /* @__PURE__ */ jsx("p", {
 						className: "mt-4 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 						children: t.home.aboutBody
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 283,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 279,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					})] }), /* @__PURE__ */ jsxs("div", {
 						className: "mt-5 flex flex-wrap gap-4 text-xs font-medium",
 						children: [
-							/* @__PURE__ */ jsxDEV(Link, {
+							/* @__PURE__ */ jsx(Link, {
 								to: localize("/about"),
 								className: "inline-flex min-h-[36px] items-center text-[var(--ca-accent)] hover:underline",
 								children: t.home.readStory
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 288,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV(Link, {
+							}),
+							/* @__PURE__ */ jsx(Link, {
 								to: localize("/size-guide"),
 								className: "inline-flex min-h-[36px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)] hover:underline",
 								children: t.nav.sizeGuide
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 291,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV(Link, {
+							}),
+							/* @__PURE__ */ jsx(Link, {
 								to: localize("/shipping"),
 								className: "inline-flex min-h-[36px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)] hover:underline",
 								children: t.nav.shipping
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 294,
-								columnNumber: 15
-							}, this)
+							})
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 287,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 278,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+					})]
+				}), /* @__PURE__ */ jsxs("div", {
 					className: "glass-panel flex flex-col justify-between rounded-2xl p-6 sm:p-8",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-3xl font-semibold text-[var(--ca-text)]",
 						children: t.home.howInstallmentsTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 302,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("ul", {
+					}), /* @__PURE__ */ jsxs("ul", {
 						className: "mt-4 space-y-3 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 						children: [
-							/* @__PURE__ */ jsxDEV("li", { children: [/* @__PURE__ */ jsxDEV("strong", {
+							/* @__PURE__ */ jsxs("li", { children: [/* @__PURE__ */ jsx("strong", {
 								className: "text-[var(--ca-text)]",
 								children: "Pick a schedule:"
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 307,
-								columnNumber: 19
-							}, this), " Choose a 2-month (15%), 3-month (25%), or 4-month (40% interest) plan to see your exact monthly amount in PKR."] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 306,
-								columnNumber: 17
-							}, this),
-							/* @__PURE__ */ jsxDEV("li", { children: [
-								/* @__PURE__ */ jsxDEV("strong", {
+							}), " Choose a 2-month (15%), 3-month (25%), or 4-month (40% interest) plan to see your exact monthly amount in PKR."] }),
+							/* @__PURE__ */ jsxs("li", { children: [
+								/* @__PURE__ */ jsx("strong", {
 									className: "text-[var(--ca-text)]",
 									children: "Add a Seller Referral ID:"
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 312,
-									columnNumber: 19
-								}, this),
+								}),
 								" Enter a verified seller code (such as",
 								" ",
-								/* @__PURE__ */ jsxDEV("span", {
+								/* @__PURE__ */ jsx("span", {
 									className: "font-mono-nums font-medium text-[var(--ca-text)]",
 									children: "CA-XXXXXX"
-								}, void 0, false, {
-									fileName: _jsxFileName$13,
-									lineNumber: 314,
-									columnNumber: 19
-								}, this),
+								}),
 								") when ordering on installments, or check out with Cash on Delivery without a code."
-							] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 311,
-								columnNumber: 17
-							}, this),
-							/* @__PURE__ */ jsxDEV("li", { children: [/* @__PURE__ */ jsxDEV("strong", {
+							] }),
+							/* @__PURE__ */ jsxs("li", { children: [/* @__PURE__ */ jsx("strong", {
 								className: "text-[var(--ca-text)]",
 								children: "Follow each payment:"
-							}, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 318,
-								columnNumber: 19
-							}, this), " Check shipping progress and paid versus remaining installments anytime inside My Orders."] }, void 0, true, {
-								fileName: _jsxFileName$13,
-								lineNumber: 317,
-								columnNumber: 17
-							}, this)
+							}), " Check shipping progress and paid versus remaining installments anytime inside My Orders."] })
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 305,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$13,
-						lineNumber: 301,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					})] }), /* @__PURE__ */ jsx("div", {
 						className: "mt-5",
-						children: /* @__PURE__ */ jsxDEV(Link, {
+						children: /* @__PURE__ */ jsx(Link, {
 							to: localize("/faq"),
 							className: "inline-flex min-h-[36px] items-center text-xs font-medium text-[var(--ca-accent)] hover:underline",
 							children: t.home.readFaq
-						}, void 0, false, {
-							fileName: _jsxFileName$13,
-							lineNumber: 324,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$13,
-						lineNumber: 323,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 300,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$13,
-				lineNumber: 277,
-				columnNumber: 9
-			}, this), /* @__PURE__ */ jsxDEV(InstallmentCalculator, {
+						})
+					})]
+				})]
+			}), /* @__PURE__ */ jsx(InstallmentCalculator, {
 				products: allProducts,
 				plans
-			}, void 0, false, {
-				fileName: _jsxFileName$13,
-				lineNumber: 331,
-				columnNumber: 9
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$13,
-			lineNumber: 276,
-			columnNumber: 7
-		}, this),
-		/* @__PURE__ */ jsxDEV("section", {
+			})]
+		}),
+		/* @__PURE__ */ jsx("section", {
 			ref: contactRevealRef,
 			id: "contact",
 			className: "ca-reveal mx-auto max-w-6xl px-4 pt-2 pb-16 sm:px-6",
-			children: /* @__PURE__ */ jsxDEV("div", {
+			children: /* @__PURE__ */ jsxs("div", {
 				className: "glass-panel flex flex-col items-start justify-between gap-6 rounded-2xl p-6 sm:flex-row sm:items-center sm:p-8",
-				children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h2", {
+				children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h2", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)]",
 					children: t.home.needHelpTitle
-				}, void 0, false, {
-					fileName: _jsxFileName$13,
-					lineNumber: 338,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("p", {
+				}), /* @__PURE__ */ jsx("p", {
 					className: "mt-1.5 text-sm text-[var(--ca-text-muted)]",
 					children: t.home.needHelpSubtitle
-				}, void 0, false, {
-					fileName: _jsxFileName$13,
-					lineNumber: 341,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 337,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+				})] }), /* @__PURE__ */ jsxs("div", {
 					className: "flex flex-wrap gap-3",
 					children: [
-						/* @__PURE__ */ jsxDEV("a", {
+						/* @__PURE__ */ jsxs("a", {
 							href: `mailto:${STORE_CONFIG.email}`,
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-surface-subtle)] px-4 py-2.5 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85",
-							children: [/* @__PURE__ */ jsxDEV(Mail, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 351,
-								columnNumber: 15
-							}, this), t.home.emailUs]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 347,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("a", {
+							children: [/* @__PURE__ */ jsx(Mail, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }), t.home.emailUs]
+						}),
+						/* @__PURE__ */ jsxs("a", {
 							href: `tel:${STORE_CONFIG.phoneDisplay}`,
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-surface-subtle)] px-4 py-2.5 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85",
-							children: [/* @__PURE__ */ jsxDEV(Phone, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 358,
-								columnNumber: 15
-							}, this), STORE_CONFIG.phoneDisplay]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 354,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("a", {
+							children: [/* @__PURE__ */ jsx(Phone, { className: "h-3.5 w-3.5 text-[var(--ca-accent)]" }), STORE_CONFIG.phoneDisplay]
+						}),
+						/* @__PURE__ */ jsxs("a", {
 							href: STORE_CONFIG.whatsappUrl,
 							target: "_blank",
 							rel: "noopener noreferrer",
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-4 py-2.5 text-xs font-semibold text-[var(--ca-bg)] hover:opacity-90",
-							children: [/* @__PURE__ */ jsxDEV(MessageCircle, { className: "h-3.5 w-3.5" }, void 0, false, {
-								fileName: _jsxFileName$13,
-								lineNumber: 367,
-								columnNumber: 15
-							}, this), t.home.whatsapp]
-						}, void 0, true, {
-							fileName: _jsxFileName$13,
-							lineNumber: 361,
-							columnNumber: 13
-						}, this)
+							children: [/* @__PURE__ */ jsx(MessageCircle, { className: "h-3.5 w-3.5" }), t.home.whatsapp]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$13,
-					lineNumber: 346,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$13,
-				lineNumber: 336,
-				columnNumber: 9
-			}, this)
-		}, void 0, false, {
-			fileName: _jsxFileName$13,
-			lineNumber: 335,
-			columnNumber: 7
-		}, this)
-	] }, void 0, true, {
-		fileName: _jsxFileName$13,
-		lineNumber: 89,
-		columnNumber: 5
-	}, this);
+				})]
+			})
+		})
+	] });
 }
 // src/components/Breadcrumbs.tsx
-var _jsxFileName$12 = "/app/applet/src/components/Breadcrumbs.tsx";
 function Breadcrumbs({ items }) {
 	const { isRtl } = useLocale();
 	if (items.length === 0) return null;
-	return /* @__PURE__ */ jsxDEV("nav", {
+	return /* @__PURE__ */ jsx("nav", {
 		"aria-label": "Breadcrumb",
 		className: "mb-5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--ca-text-muted)]",
 		children: items.map((item, idx) => {
 			const isLast = idx === items.length - 1;
-			return /* @__PURE__ */ jsxDEV("span", {
+			return /* @__PURE__ */ jsxs("span", {
 				className: "inline-flex items-center gap-1.5",
-				children: [idx > 0 && /* @__PURE__ */ jsxDEV(ChevronRight, {
+				children: [idx > 0 && /* @__PURE__ */ jsx(ChevronRight, {
 					"aria-hidden": "true",
 					className: `h-3.5 w-3.5 opacity-60 ${isRtl ? "rotate-180" : ""}`
-				}, void 0, false, {
-					fileName: _jsxFileName$12,
-					lineNumber: 22,
-					columnNumber: 15
-				}, this), item.to && !isLast ? /* @__PURE__ */ jsxDEV(Link, {
+				}), item.to && !isLast ? /* @__PURE__ */ jsx(Link, {
 					to: item.to,
 					className: "inline-flex min-h-[32px] items-center hover:text-[var(--ca-text)] hover:underline",
 					children: item.label
-				}, void 0, false, {
-					fileName: _jsxFileName$12,
-					lineNumber: 28,
-					columnNumber: 15
-				}, this) : /* @__PURE__ */ jsxDEV("span", {
+				}) : /* @__PURE__ */ jsx("span", {
 					"aria-current": isLast ? "page" : void 0,
 					className: isLast ? "font-medium text-[var(--ca-text)]" : "",
 					children: item.label
-				}, void 0, false, {
-					fileName: _jsxFileName$12,
-					lineNumber: 35,
-					columnNumber: 15
-				}, this)]
-			}, `${item.label}-${idx}`, true, {
-				fileName: _jsxFileName$12,
-				lineNumber: 20,
-				columnNumber: 11
-			}, this);
+				})]
+			}, `${item.label}-${idx}`);
 		})
-	}, void 0, false, {
-		fileName: _jsxFileName$12,
-		lineNumber: 16,
-		columnNumber: 5
-	}, this);
+	});
 }
 // src/pages/ShopPage.tsx
-var _jsxFileName$11 = "/app/applet/src/pages/ShopPage.tsx";
 var PAGE_SIZE = 12;
 function ShopPage({ onNetworkError }) {
 	const { t, locale, localize } = useLocale();
@@ -5996,7 +4058,7 @@ function ShopPage({ onNetworkError }) {
 	const shopSeoTitle = activeCategory ? `${activeCategory.name} — ${t.brand}` : locale === "ur" ? `مکمل کلیکشن — ${t.brand}` : "Shop Clothing & Accessories in PKR — Cinematic Arts";
 	const shopSeoDescription = activeCategory ? t.category.intros[activeCategory.slug] || `Browse ${activeCategory.name} from Cinematic Arts in PKR with Cash on Delivery and monthly installments.` : t.hero.subtitle;
 	const shopCanonicalPath = localize(categoryId !== "all" ? `/shop?category=${encodeURIComponent(categoryId)}` : "/shop");
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: shopSeoTitle,
 		description: shopSeoDescription,
 		canonicalPath: shopCanonicalPath,
@@ -6008,51 +4070,27 @@ function ShopPage({ onNetworkError }) {
 			name: t.nav.shop,
 			path: localize("/shop")
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$11,
-		lineNumber: 116,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12",
 		children: [
-			/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+			/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 				label: t.nav.home,
 				to: localize("/")
-			}, { label: t.nav.shop }] }, void 0, false, {
-				fileName: _jsxFileName$11,
-				lineNumber: 134,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+			}, { label: t.nav.shop }] }),
+			/* @__PURE__ */ jsxs("div", {
 				className: "flex flex-col justify-between gap-4 sm:flex-row sm:items-end",
-				children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h1", {
+				children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-4xl font-semibold text-[var(--ca-text)]",
 					children: t.shop.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 143,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("p", {
+				}), /* @__PURE__ */ jsx("p", {
 					className: "mt-1 text-xs text-[var(--ca-text-muted)]",
 					children: t.shop.subtitle
-				}, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 146,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$11,
-					lineNumber: 142,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+				})] }), /* @__PURE__ */ jsxs("div", {
 					className: "flex flex-col gap-3 sm:flex-row sm:items-center",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsxs("div", {
 							className: "relative w-full sm:w-64",
-							children: [/* @__PURE__ */ jsxDEV(Search, { className: "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ca-text-muted)]" }, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 153,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("input", {
+							children: [/* @__PURE__ */ jsx(Search, { className: "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ca-text-muted)]" }), /* @__PURE__ */ jsx("input", {
 								type: "search",
 								maxLength: 80,
 								value: search,
@@ -6060,23 +4098,11 @@ function ShopPage({ onNetworkError }) {
 								"aria-label": "Search products",
 								placeholder: t.shop.searchPlaceholder,
 								className: "w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] py-2.5 pl-10 pr-3.5 text-sm text-[var(--ca-text)] focus:border-[var(--ca-accent)] focus:outline-none"
-							}, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 154,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 152,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+							})]
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "inline-flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3 py-2.5 sm:w-auto",
-							children: [/* @__PURE__ */ jsxDEV(SlidersHorizontal, { className: "h-3.5 w-3.5 text-[var(--ca-text-muted)]" }, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 166,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("select", {
+							children: [/* @__PURE__ */ jsx(SlidersHorizontal, { className: "h-3.5 w-3.5 text-[var(--ca-text-muted)]" }), /* @__PURE__ */ jsxs("select", {
 								value: sort,
 								onChange: (e) => {
 									setSort(e.target.value);
@@ -6085,162 +4111,83 @@ function ShopPage({ onNetworkError }) {
 								"aria-label": "Sort products",
 								className: "bg-transparent text-xs font-medium text-[var(--ca-text)] focus:outline-none",
 								children: [
-									/* @__PURE__ */ jsxDEV("option", {
+									/* @__PURE__ */ jsx("option", {
 										value: "latest",
 										children: t.shop.sortLatest
-									}, void 0, false, {
-										fileName: _jsxFileName$11,
-										lineNumber: 176,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("option", {
+									}),
+									/* @__PURE__ */ jsx("option", {
 										value: "price_asc",
 										children: t.shop.sortPriceAsc
-									}, void 0, false, {
-										fileName: _jsxFileName$11,
-										lineNumber: 177,
-										columnNumber: 17
-									}, this),
-									/* @__PURE__ */ jsxDEV("option", {
+									}),
+									/* @__PURE__ */ jsx("option", {
 										value: "price_desc",
 										children: t.shop.sortPriceDesc
-									}, void 0, false, {
-										fileName: _jsxFileName$11,
-										lineNumber: 178,
-										columnNumber: 17
-									}, this)
+									})
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$11,
-								lineNumber: 167,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 165,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("button", {
+							})]
+						}),
+						/* @__PURE__ */ jsxs("button", {
 							type: "button",
 							onClick: () => setShowCalculator((v) => !v),
 							"aria-expanded": showCalculator,
 							className: `btn-press inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-colors sm:w-auto whitespace-nowrap ${showCalculator ? "border-[var(--ca-accent)] bg-[var(--ca-accent)] text-[var(--ca-accent-fg)]" : "border-[var(--ca-border)] bg-[var(--ca-surface-solid)] text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"}`,
-							children: [/* @__PURE__ */ jsxDEV(Calculator, { className: "h-3.5 w-3.5" }, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 192,
-								columnNumber: 15
-							}, this), showCalculator ? t.shop.hideCalc : t.shop.installmentCalc]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 182,
-							columnNumber: 13
-						}, this)
+							children: [/* @__PURE__ */ jsx(Calculator, { className: "h-3.5 w-3.5" }), showCalculator ? t.shop.hideCalc : t.shop.installmentCalc]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$11,
-					lineNumber: 151,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$11,
-				lineNumber: 141,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+				})]
+			}),
+			/* @__PURE__ */ jsxs("div", {
 				role: "tablist",
 				"aria-label": "Product Categories",
 				className: "mt-6 flex flex-wrap gap-1.5 rounded-xl bg-[var(--ca-surface-subtle)] p-1.5",
-				children: [/* @__PURE__ */ jsxDEV("button", {
+				children: [/* @__PURE__ */ jsx("button", {
 					type: "button",
 					role: "tab",
 					"aria-selected": categoryId === "all",
 					onClick: () => handleCategoryChange("all"),
 					className: `btn-press min-h-[44px] rounded-xl px-4 py-2 text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${categoryId === "all" ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 					children: t.shop.allItems
-				}, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 204,
-					columnNumber: 11
-				}, this), categories.map((c) => /* @__PURE__ */ jsxDEV("button", {
+				}), categories.map((c) => /* @__PURE__ */ jsx("button", {
 					type: "button",
 					role: "tab",
 					"aria-selected": categoryId === c.id,
 					onClick: () => handleCategoryChange(c.id),
 					className: `btn-press min-h-[44px] rounded-xl px-4 py-2 text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${categoryId === c.id ? "bg-[var(--ca-surface-solid)] text-[var(--ca-text)] shadow-sm" : "text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 					children: c.name
-				}, c.id, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 218,
-					columnNumber: 13
-				}, this))]
-			}, void 0, true, {
-				fileName: _jsxFileName$11,
-				lineNumber: 199,
-				columnNumber: 9
-			}, this),
-			categories.length > 0 && /* @__PURE__ */ jsxDEV("div", {
+				}, c.id))]
+			}),
+			categories.length > 0 && /* @__PURE__ */ jsx("div", {
 				className: "mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--ca-text-muted)]",
-				children: categories.map((c) => /* @__PURE__ */ jsxDEV(Link, {
+				children: categories.map((c) => /* @__PURE__ */ jsx(Link, {
 					to: localize(`/category/${c.slug}`),
 					className: "hover:text-[var(--ca-text)] hover:underline",
 					children: c.name
-				}, c.id, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 239,
-					columnNumber: 15
-				}, this))
-			}, void 0, false, {
-				fileName: _jsxFileName$11,
-				lineNumber: 237,
-				columnNumber: 11
-			}, this),
-			showCalculator && /* @__PURE__ */ jsxDEV("div", {
+				}, c.id))
+			}),
+			showCalculator && /* @__PURE__ */ jsx("div", {
 				className: "mt-6",
-				children: /* @__PURE__ */ jsxDEV(InstallmentCalculator, { products }, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 252,
-					columnNumber: 13
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$11,
-				lineNumber: 251,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+				children: /* @__PURE__ */ jsx(InstallmentCalculator, { products })
+			}),
+			/* @__PURE__ */ jsx("div", {
 				ref: gridRevealRef,
 				className: "ca-reveal mt-8",
-				children: loading ? /* @__PURE__ */ jsxDEV(ProductGridSkeleton, { count: 6 }, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 259,
-					columnNumber: 13
-				}, this) : error ? /* @__PURE__ */ jsxDEV(FriendlyErrorState, {
+				children: loading ? /* @__PURE__ */ jsx(ProductGridSkeleton, { count: 6 }) : error ? /* @__PURE__ */ jsx(FriendlyErrorState, {
 					title: "Could not load catalog",
 					message: error,
+					error: queryError,
 					onRetry: () => refetch()
-				}, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 261,
-					columnNumber: 13
-				}, this) : products.length === 0 ? /* @__PURE__ */ jsxDEV("div", {
+				}) : products.length === 0 ? /* @__PURE__ */ jsxs("div", {
 					className: "ca-fade-in glass-panel rounded-2xl p-12 text-center",
 					children: [
-						/* @__PURE__ */ jsxDEV("h2", {
+						/* @__PURE__ */ jsx("h2", {
 							className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 							children: t.shop.noMatchTitle
-						}, void 0, false, {
-							fileName: _jsxFileName$11,
-							lineNumber: 268,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV("p", {
+						}),
+						/* @__PURE__ */ jsx("p", {
 							className: "mt-2 text-sm text-[var(--ca-text-muted)]",
 							children: t.shop.noMatchDesc
-						}, void 0, false, {
-							fileName: _jsxFileName$11,
-							lineNumber: 271,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV("button", {
+						}),
+						/* @__PURE__ */ jsx("button", {
 							type: "button",
 							onClick: () => {
 								setSearch("");
@@ -6249,32 +4196,16 @@ function ShopPage({ onNetworkError }) {
 							},
 							className: "btn-press mt-5 min-h-[44px] rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85",
 							children: t.shop.resetFilters
-						}, void 0, false, {
-							fileName: _jsxFileName$11,
-							lineNumber: 274,
-							columnNumber: 15
-						}, this)
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$11,
-					lineNumber: 267,
-					columnNumber: 13
-				}, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV("div", {
+				}) : /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx("div", {
 					className: "ca-fade-in grid grid-cols-2 gap-3 sm:gap-6",
-					children: visibleProducts.map((product) => /* @__PURE__ */ jsxDEV(ProductCard, { product }, product.id, false, {
-						fileName: _jsxFileName$11,
-						lineNumber: 290,
-						columnNumber: 19
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$11,
-					lineNumber: 288,
-					columnNumber: 15
-				}, this), totalPages > 1 && /* @__PURE__ */ jsxDEV("nav", {
+					children: visibleProducts.map((product) => /* @__PURE__ */ jsx(ProductCard, { product }, product.id))
+				}), totalPages > 1 && /* @__PURE__ */ jsxs("nav", {
 					"aria-label": "Catalog pagination",
 					className: "glass-panel mt-8 flex items-center justify-between rounded-2xl px-4 py-3 text-xs",
 					children: [
-						/* @__PURE__ */ jsxDEV("button", {
+						/* @__PURE__ */ jsxs("button", {
 							type: "button",
 							disabled: safePage <= 1,
 							onClick: () => {
@@ -6285,40 +4216,24 @@ function ShopPage({ onNetworkError }) {
 								});
 							},
 							className: "btn-press inline-flex min-h-[40px] items-center gap-1 rounded-xl border border-[var(--ca-border)] px-3 py-1.5 font-semibold disabled:opacity-40",
-							children: [/* @__PURE__ */ jsxDEV(ChevronLeft, { className: "h-3.5 w-3.5" }, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 308,
-								columnNumber: 21
-							}, this), t.shop.previous]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 299,
-							columnNumber: 19
-						}, this),
-						/* @__PURE__ */ jsxDEV("span", {
+							children: [/* @__PURE__ */ jsx(ChevronLeft, { className: "h-3.5 w-3.5" }), t.shop.previous]
+						}),
+						/* @__PURE__ */ jsxs("span", {
 							className: "font-mono-nums text-[var(--ca-text-muted)]",
 							children: [
 								"Page ",
-								/* @__PURE__ */ jsxDEV("strong", {
+								/* @__PURE__ */ jsx("strong", {
 									className: "text-[var(--ca-text)]",
 									children: safePage
-								}, void 0, false, {
-									fileName: _jsxFileName$11,
-									lineNumber: 313,
-									columnNumber: 26
-								}, this),
+								}),
 								" of ",
 								totalPages,
 								" (",
 								products.length,
 								" items)"
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 312,
-							columnNumber: 19
-						}, this),
-						/* @__PURE__ */ jsxDEV("button", {
+						}),
+						/* @__PURE__ */ jsxs("button", {
 							type: "button",
 							disabled: safePage >= totalPages,
 							onClick: () => {
@@ -6329,44 +4244,15 @@ function ShopPage({ onNetworkError }) {
 								});
 							},
 							className: "btn-press inline-flex min-h-[40px] items-center gap-1 rounded-xl border border-[var(--ca-border)] px-3 py-1.5 font-semibold disabled:opacity-40",
-							children: [t.shop.next, /* @__PURE__ */ jsxDEV(ChevronRight, { className: "h-3.5 w-3.5" }, void 0, false, {
-								fileName: _jsxFileName$11,
-								lineNumber: 326,
-								columnNumber: 21
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$11,
-							lineNumber: 316,
-							columnNumber: 19
-						}, this)
+							children: [t.shop.next, /* @__PURE__ */ jsx(ChevronRight, { className: "h-3.5 w-3.5" })]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$11,
-					lineNumber: 295,
-					columnNumber: 17
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$11,
-					lineNumber: 287,
-					columnNumber: 13
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$11,
-				lineNumber: 257,
-				columnNumber: 9
-			}, this)
+				})] })
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$11,
-		lineNumber: 133,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$11,
-		lineNumber: 115,
-		columnNumber: 5
-	}, this);
+	})] });
 }
 // src/pages/CategoryPage.tsx
-var _jsxFileName$10 = "/app/applet/src/pages/CategoryPage.tsx";
 function CategoryPage() {
 	const { slug = "" } = useParams();
 	const { t, locale, localize } = useLocale();
@@ -6393,54 +4279,30 @@ function CategoryPage() {
 		return allProducts.filter((p) => p.categoryId === matchedCategory.id || p.categoryName.trim().toLowerCase() === matchedCategory.name.trim().toLowerCase());
 	}, [allProducts, matchedCategory]);
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
-	if (!slugValid || !isLoading && !error && !matchedCategory) return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	if (!slugValid || !isLoading && !error && !matchedCategory) return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: `Category Not Found — ${t.brand}`,
 		description: "This product category was not found.",
 		canonicalPath: localize(`/category/${slug}`),
 		locale,
 		noIndex: true
-	}, void 0, false, {
-		fileName: _jsxFileName$10,
-		lineNumber: 66,
-		columnNumber: 9
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-3xl px-4 py-16 text-center",
 		children: [
-			/* @__PURE__ */ jsxDEV("h1", {
+			/* @__PURE__ */ jsx("h1", {
 				className: "font-display text-3xl font-semibold text-[var(--ca-text)]",
 				children: t.notFound.heading
-			}, void 0, false, {
-				fileName: _jsxFileName$10,
-				lineNumber: 74,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV("p", {
+			}),
+			/* @__PURE__ */ jsx("p", {
 				className: "mt-2 text-sm text-[var(--ca-text-muted)]",
 				children: t.category.emptyDesc
-			}, void 0, false, {
-				fileName: _jsxFileName$10,
-				lineNumber: 77,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV(Link, {
+			}),
+			/* @__PURE__ */ jsx(Link, {
 				to: localize("/shop"),
 				className: "btn-press mt-6 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)]",
 				children: t.category.browseAllCta
-			}, void 0, false, {
-				fileName: _jsxFileName$10,
-				lineNumber: 80,
-				columnNumber: 11
-			}, this)
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$10,
-		lineNumber: 73,
-		columnNumber: 9
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$10,
-		lineNumber: 65,
-		columnNumber: 7
-	}, this);
+	})] });
 	const displayCategory = matchedCategory || {
 		id: `cat-${slug}`,
 		name: formatSlugAsTitle(slug),
@@ -6450,14 +4312,10 @@ function CategoryPage() {
 	};
 	const categorySeo = buildCategorySeoConfig(displayCategory, origin, locale);
 	const introText = t.category.intros[displayCategory.slug] || displayCategory.description || t.category.fallbackIntro(displayCategory.name);
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, { ...categorySeo }, void 0, false, {
-		fileName: _jsxFileName$10,
-		lineNumber: 107,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, { ...categorySeo }), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12",
 		children: [
-			/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [
+			/* @__PURE__ */ jsx(Breadcrumbs, { items: [
 				{
 					label: t.nav.home,
 					to: localize("/")
@@ -6467,153 +4325,69 @@ function CategoryPage() {
 					to: localize("/shop")
 				},
 				{ label: displayCategory.name }
-			] }, void 0, false, {
-				fileName: _jsxFileName$10,
-				lineNumber: 110,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+			] }),
+			/* @__PURE__ */ jsxs("div", {
 				className: "glass-panel rounded-2xl p-6 sm:p-8",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "flex flex-col justify-between gap-4 sm:flex-row sm:items-end",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [
-						/* @__PURE__ */ jsxDEV("h1", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [
+						/* @__PURE__ */ jsx("h1", {
 							className: "font-display text-4xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 							children: displayCategory.name
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 121,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV("p", {
+						}),
+						/* @__PURE__ */ jsx("p", {
 							className: "mt-2 max-w-2xl text-sm leading-relaxed text-[var(--ca-text-muted)] sm:text-base",
 							children: introText
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 124,
-							columnNumber: 15
-						}, this),
-						!isLoading && !error && /* @__PURE__ */ jsxDEV("p", {
+						}),
+						!isLoading && !error && /* @__PURE__ */ jsx("p", {
 							className: "mt-2 text-xs font-medium text-[var(--ca-accent)]",
 							children: t.category.itemsCountLabel(filteredProducts.length)
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 128,
-							columnNumber: 17
-						}, this)
-					] }, void 0, true, {
-						fileName: _jsxFileName$10,
-						lineNumber: 120,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV(Link, {
+						})
+					] }), /* @__PURE__ */ jsx(Link, {
 						to: localize("/size-guide"),
 						className: "btn-press inline-flex min-h-[44px] shrink-0 items-center rounded-xl bg-[var(--ca-surface-subtle)] px-4 py-2.5 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85",
 						children: t.category.sizeGuideCta
-					}, void 0, false, {
-						fileName: _jsxFileName$10,
-						lineNumber: 134,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$10,
-					lineNumber: 119,
-					columnNumber: 11
-				}, this), categories.length > 0 && /* @__PURE__ */ jsxDEV("nav", {
+					})]
+				}), categories.length > 0 && /* @__PURE__ */ jsx("nav", {
 					"aria-label": t.category.allCategories,
 					className: "mt-6 flex flex-wrap gap-2",
-					children: categories.map((cat) => /* @__PURE__ */ jsxDEV(Link, {
+					children: categories.map((cat) => /* @__PURE__ */ jsx(Link, {
 						to: localize(`/category/${cat.slug}`),
 						className: `btn-press inline-flex min-h-[40px] items-center rounded-[10px] px-3.5 py-1.5 text-xs font-medium transition-colors ${cat.slug === displayCategory.slug ? "bg-[var(--ca-text)] text-[var(--ca-bg)]" : "bg-[var(--ca-surface-subtle)] text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"}`,
 						children: cat.name
-					}, cat.id, false, {
-						fileName: _jsxFileName$10,
-						lineNumber: 145,
-						columnNumber: 17
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$10,
-					lineNumber: 143,
-					columnNumber: 13
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$10,
-				lineNumber: 118,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+					}, cat.id))
+				})]
+			}),
+			/* @__PURE__ */ jsx("div", {
 				className: "mt-8",
-				children: isLoading ? /* @__PURE__ */ jsxDEV(ProductGridSkeleton, { count: 4 }, void 0, false, {
-					fileName: _jsxFileName$10,
-					lineNumber: 163,
-					columnNumber: 13
-				}, this) : error ? /* @__PURE__ */ jsxDEV(FriendlyErrorState, {
+				children: isLoading ? /* @__PURE__ */ jsx(ProductGridSkeleton, { count: 4 }) : error ? /* @__PURE__ */ jsx(FriendlyErrorState, {
 					title: "Could not load category",
 					message: error instanceof Error ? error.message : "Failed to load category items.",
 					onRetry: () => refetch()
-				}, void 0, false, {
-					fileName: _jsxFileName$10,
-					lineNumber: 165,
-					columnNumber: 13
-				}, this) : filteredProducts.length === 0 ? /* @__PURE__ */ jsxDEV("div", {
+				}) : filteredProducts.length === 0 ? /* @__PURE__ */ jsxs("div", {
 					className: "glass-panel rounded-2xl p-10 text-center",
 					children: [
-						/* @__PURE__ */ jsxDEV("h2", {
+						/* @__PURE__ */ jsx("h2", {
 							className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 							children: t.category.emptyTitle
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 172,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV("p", {
+						}),
+						/* @__PURE__ */ jsx("p", {
 							className: "mt-2 text-sm text-[var(--ca-text-muted)]",
 							children: t.category.emptyDesc
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 175,
-							columnNumber: 15
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/shop"),
 							className: "btn-press mt-5 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
 							children: t.category.browseAllCta
-						}, void 0, false, {
-							fileName: _jsxFileName$10,
-							lineNumber: 178,
-							columnNumber: 15
-						}, this)
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$10,
-					lineNumber: 171,
-					columnNumber: 13
-				}, this) : /* @__PURE__ */ jsxDEV("div", {
+				}) : /* @__PURE__ */ jsx("div", {
 					className: "grid grid-cols-2 gap-3 sm:gap-6",
-					children: filteredProducts.map((product) => /* @__PURE__ */ jsxDEV(ProductCard, { product }, product.id, false, {
-						fileName: _jsxFileName$10,
-						lineNumber: 188,
-						columnNumber: 17
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$10,
-					lineNumber: 186,
-					columnNumber: 13
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$10,
-				lineNumber: 161,
-				columnNumber: 9
-			}, this)
+					children: filteredProducts.map((product) => /* @__PURE__ */ jsx(ProductCard, { product }, product.id))
+				})
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$10,
-		lineNumber: 109,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$10,
-		lineNumber: 106,
-		columnNumber: 5
-	}, this);
+	})] });
 }
 var dynamicRedirects = new Map(Object.entries({}));
 function resolveProductSlugRedirect(slug, extraMap) {
@@ -6631,7 +4405,6 @@ function resolveProductSlugRedirect(slug, extraMap) {
 	return current !== normalized ? current : null;
 }
 // src/pages/ProductDetailPage.tsx
-var _jsxFileName$9 = "/app/applet/src/pages/ProductDetailPage.tsx";
 function ProductDetailPage() {
 	const { slug = "" } = useParams();
 	const { t, locale, isRtl, localize } = useLocale();
@@ -6691,158 +4464,87 @@ function ProductDetailPage() {
 		const others = catalog.filter((p) => p.id !== product.id && p.categoryId !== product.categoryId);
 		return [...sameCategory, ...others].slice(0, 4);
 	}, [product, catalog]);
-	if (redirectedSlug) return /* @__PURE__ */ jsxDEV(Navigate, {
+	if (redirectedSlug) return /* @__PURE__ */ jsx(Navigate, {
 		to: localize(`/product/${redirectedSlug}`),
 		replace: true
-	}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 93,
-		columnNumber: 12
-	}, this);
-	if (!slugValid) return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	});
+	if (!slugValid) return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: `${t.product.notFoundTitle} — ${t.brand}`,
 		description: t.product.notFoundDesc,
 		canonicalPath: localize("/shop"),
 		locale,
 		noIndex: true
-	}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 99,
-		columnNumber: 9
-	}, this), /* @__PURE__ */ jsxDEV("div", {
+	}), /* @__PURE__ */ jsxs("div", {
 		className: "mx-auto max-w-2xl px-4 py-20 text-center",
 		children: [
-			/* @__PURE__ */ jsxDEV("h1", {
+			/* @__PURE__ */ jsx("h1", {
 				className: "font-display text-3xl font-semibold",
 				children: t.product.notFoundTitle
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 107,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV("p", {
+			}),
+			/* @__PURE__ */ jsx("p", {
 				className: "mt-2 text-sm text-[var(--ca-text-muted)]",
 				children: t.product.notFoundDesc
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 108,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV(Link, {
+			}),
+			/* @__PURE__ */ jsx(Link, {
 				to: localize("/shop"),
 				className: "mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]",
 				children: t.product.backToCollection
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 111,
-				columnNumber: 11
-			}, this)
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 106,
-		columnNumber: 9
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 98,
-		columnNumber: 7
-	}, this);
-	if (loading) return /* @__PURE__ */ jsxDEV(ProductDetailSkeleton, {}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 123,
-		columnNumber: 12
-	}, this);
-	if (queryError) return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	})] });
+	if (loading) return /* @__PURE__ */ jsx(ProductDetailSkeleton, {});
+	if (queryError) return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: `Could Not Load Product — ${t.brand}`,
 		description: "Unable to load product details right now. Please try again.",
 		canonicalPath: localize(slug ? `/product/${slug}` : "/shop"),
 		locale,
 		noIndex: true
-	}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 129,
-		columnNumber: 9
-	}, this), /* @__PURE__ */ jsxDEV("div", {
+	}), /* @__PURE__ */ jsx("div", {
 		className: "mx-auto max-w-3xl px-4 py-12 sm:px-6",
-		children: /* @__PURE__ */ jsxDEV(FriendlyErrorState, {
+		children: /* @__PURE__ */ jsx(FriendlyErrorState, {
 			title: "Could not load product",
 			message: queryError instanceof Error ? queryError.message : "Unable to load product details.",
+			error: queryError,
 			onRetry: () => refetch()
-		}, void 0, false, {
-			fileName: _jsxFileName$9,
-			lineNumber: 137,
-			columnNumber: 11
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 136,
-		columnNumber: 9
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 128,
-		columnNumber: 7
-	}, this);
-	if (!product) return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+		})
+	})] });
+	if (!product) return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: `${t.product.notFoundTitle} — ${t.brand}`,
 		description: t.product.notFoundDesc,
 		canonicalPath: localize(slug ? `/product/${slug}` : "/shop"),
 		locale,
 		noIndex: true
-	}, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 150,
-		columnNumber: 9
-	}, this), /* @__PURE__ */ jsxDEV("div", {
+	}), /* @__PURE__ */ jsxs("div", {
 		className: "mx-auto max-w-2xl px-4 py-20 text-center",
 		children: [
-			/* @__PURE__ */ jsxDEV("h1", {
+			/* @__PURE__ */ jsx("h1", {
 				className: "font-display text-3xl font-semibold",
 				children: t.product.notFoundTitle
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 158,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV("p", {
+			}),
+			/* @__PURE__ */ jsx("p", {
 				className: "mt-2 text-sm text-[var(--ca-text-muted)]",
 				children: t.product.notFoundDesc
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 159,
-				columnNumber: 11
-			}, this),
-			/* @__PURE__ */ jsxDEV(Link, {
+			}),
+			/* @__PURE__ */ jsx(Link, {
 				to: localize("/shop"),
 				className: "mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]",
 				children: t.product.backToCollection
-			}, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 162,
-				columnNumber: 11
-			}, this)
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 157,
-		columnNumber: 9
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 149,
-		columnNumber: 7
-	}, this);
+	})] });
 	const allImages = [product.coverImage, ...product.extraImages || []];
 	const productSeo = buildProductSeoConfig(product, typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl, locale);
 	const categorySlug = product.categoryId.replace(/^cat-/i, "");
 	const sku = deriveProductSku(product);
 	const BackIcon = isRtl ? ArrowRight : ArrowLeft;
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, { ...productSeo }, void 0, false, {
-		fileName: _jsxFileName$9,
-		lineNumber: 183,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	const stockStatus = deriveProductStockStatus(product);
+	const maxQuantity = typeof stockStatus.remainingUnits === "number" && stockStatus.remainingUnits > 0 ? Math.min(20, stockStatus.remainingUnits) : 20;
+	const stockBadgeLabel = stockStatus.level === "out_of_stock" ? t.product.outOfStock : stockStatus.level === "low_stock" ? typeof stockStatus.remainingUnits === "number" ? `${t.product.lowStock} (${stockStatus.remainingUnits} left)` : t.product.lowStock : t.product.inStock;
+	const stockBadgeClasses = stockStatus.level === "out_of_stock" ? "bg-red-500/12 text-red-700 dark:text-red-300" : stockStatus.level === "low_stock" ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300";
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, { ...productSeo }), /* @__PURE__ */ jsxs("section", {
 		className: "ca-fade-in mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12",
 		children: [
-			/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [
+			/* @__PURE__ */ jsx(Breadcrumbs, { items: [
 				{
 					label: t.nav.home,
 					to: localize("/")
@@ -6856,140 +4558,77 @@ function ProductDetailPage() {
 					to: localize(`/category/${categorySlug}`)
 				},
 				{ label: product.title }
-			] }, void 0, false, {
-				fileName: _jsxFileName$9,
-				lineNumber: 186,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Link, {
+			] }),
+			/* @__PURE__ */ jsxs(Link, {
 				to: localize("/shop"),
 				className: "inline-flex min-h-[44px] items-center gap-1.5 text-xs font-medium text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]",
-				children: [/* @__PURE__ */ jsxDEV(BackIcon, { className: "h-3.5 w-3.5" }, void 0, false, {
-					fileName: _jsxFileName$9,
-					lineNumber: 199,
-					columnNumber: 11
-				}, this), t.product.backToCollection]
-			}, void 0, true, {
-				fileName: _jsxFileName$9,
-				lineNumber: 195,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsx(BackIcon, { className: "h-3.5 w-3.5" }), t.product.backToCollection]
+			}),
+			/* @__PURE__ */ jsxs("div", {
 				className: "mt-4 grid grid-cols-1 gap-8 lg:grid-cols-12",
-				children: [/* @__PURE__ */ jsxDEV("div", {
+				children: [/* @__PURE__ */ jsxs("div", {
 					className: "space-y-3 lg:col-span-7",
-					children: [/* @__PURE__ */ jsxDEV("div", {
+					children: [/* @__PURE__ */ jsx("div", {
 						className: "glass-panel overflow-hidden rounded-2xl p-2 sm:p-3",
-						children: /* @__PURE__ */ jsxDEV("div", {
+						children: /* @__PURE__ */ jsx("div", {
 							className: "aspect-[4/3] overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)]",
-							children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+							children: /* @__PURE__ */ jsx(ResilientImage, {
 								src: selectedImage || product.coverImage,
 								alt: `${product.title} — ${product.categoryName}`,
 								width: 800,
 								height: 600,
 								priority: true,
 								className: "h-full w-full object-cover"
-							}, void 0, false, {
-								fileName: _jsxFileName$9,
-								lineNumber: 208,
-								columnNumber: 17
-							}, this)
-						}, void 0, false, {
-							fileName: _jsxFileName$9,
-							lineNumber: 207,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$9,
-						lineNumber: 206,
-						columnNumber: 13
-					}, this), allImages.length > 1 && /* @__PURE__ */ jsxDEV("div", {
+							})
+						})
+					}), allImages.length > 1 && /* @__PURE__ */ jsx("div", {
 						className: "flex gap-3 overflow-x-auto pb-1",
-						children: allImages.map((img, i) => /* @__PURE__ */ jsxDEV("button", {
+						children: allImages.map((img, i) => /* @__PURE__ */ jsx("button", {
 							type: "button",
 							onClick: () => setSelectedImage(img),
 							className: `h-20 w-24 shrink-0 overflow-hidden rounded-xl p-1 transition-all ${selectedImage === img ? "ring-2 ring-[var(--ca-accent)]" : "opacity-75 hover:opacity-100"}`,
-							children: /* @__PURE__ */ jsxDEV(ResilientImage, {
+							children: /* @__PURE__ */ jsx(ResilientImage, {
 								src: img,
 								alt: `${product.title} gallery photo ${i + 1}`,
 								width: 160,
 								height: 120,
 								className: "h-full w-full rounded-lg object-cover"
-							}, void 0, false, {
-								fileName: _jsxFileName$9,
-								lineNumber: 231,
-								columnNumber: 21
-							}, this)
-						}, i, false, {
-							fileName: _jsxFileName$9,
-							lineNumber: 221,
-							columnNumber: 19
-						}, this))
-					}, void 0, false, {
-						fileName: _jsxFileName$9,
-						lineNumber: 219,
-						columnNumber: 15
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$9,
-					lineNumber: 205,
-					columnNumber: 11
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+							})
+						}, i))
+					})]
+				}), /* @__PURE__ */ jsx("div", {
 					className: "lg:col-span-5",
-					children: /* @__PURE__ */ jsxDEV("div", {
+					children: /* @__PURE__ */ jsxs("div", {
 						className: "glass-panel sticky top-20 rounded-2xl p-6 sm:p-7",
 						children: [
-							/* @__PURE__ */ jsxDEV("div", {
+							/* @__PURE__ */ jsxs("div", {
 								className: "flex items-start justify-between gap-3",
-								children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("div", {
+								children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsxs("div", {
 									className: "flex flex-wrap items-center gap-2 text-xs text-[var(--ca-text-muted)]",
 									children: [
-										/* @__PURE__ */ jsxDEV(Link, {
+										/* @__PURE__ */ jsx(Link, {
 											to: localize(`/category/${categorySlug}`),
 											className: "hover:text-[var(--ca-text)] hover:underline",
 											children: product.categoryName
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 250,
-											columnNumber: 21
-										}, this),
-										/* @__PURE__ */ jsxDEV("span", {
+										}),
+										/* @__PURE__ */ jsxs("span", {
 											className: "font-mono-nums opacity-75",
 											children: [
 												t.product.skuLabel,
 												": ",
 												sku
 											]
-										}, void 0, true, {
-											fileName: _jsxFileName$9,
-											lineNumber: 256,
-											columnNumber: 21
-										}, this),
-										!product.inStock && /* @__PURE__ */ jsxDEV("span", {
-											className: "rounded-full bg-[var(--ca-surface-subtle)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--ca-text-muted)]",
-											children: t.product.outOfStock
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 260,
-											columnNumber: 23
-										}, this)
+										}),
+										/* @__PURE__ */ jsx("span", {
+											"data-testid": "pdp-stock-badge",
+											className: `rounded-full px-2.5 py-0.5 text-[11px] font-medium ${stockBadgeClasses}`,
+											children: stockBadgeLabel
+										})
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 249,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("h1", {
+								}), /* @__PURE__ */ jsx("h1", {
 									className: "font-display mt-1.5 text-3xl font-semibold text-[var(--ca-text)]",
 									children: product.title
-								}, void 0, false, {
-									fileName: _jsxFileName$9,
-									lineNumber: 265,
-									columnNumber: 19
-								}, this)] }, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 248,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("button", {
+								})] }), /* @__PURE__ */ jsx("button", {
 									type: "button",
 									onClick: () => {
 										const nextSaved = !isWishlisted(product.id);
@@ -7000,176 +4639,82 @@ function ProductDetailPage() {
 									"aria-label": isWishlisted(product.id) ? `Remove ${product.title} from wishlist` : `Save ${product.title} to wishlist`,
 									"aria-pressed": isWishlisted(product.id),
 									className: "btn-press inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
-									children: /* @__PURE__ */ jsxDEV(Heart, { className: `h-4 w-4 ${heartPopKey > 0 ? "ca-heart-pop" : ""} ${isWishlisted(product.id) ? "fill-[var(--ca-accent)] text-[var(--ca-accent)]" : ""}` }, heartPopKey, false, {
-										fileName: _jsxFileName$9,
-										lineNumber: 284,
-										columnNumber: 19
-									}, this)
-								}, void 0, false, {
-									fileName: _jsxFileName$9,
-									lineNumber: 269,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$9,
-								lineNumber: 247,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV("p", {
+									children: /* @__PURE__ */ jsx(Heart, { className: `h-4 w-4 ${heartPopKey > 0 ? "ca-heart-pop" : ""} ${isWishlisted(product.id) ? "fill-[var(--ca-accent)] text-[var(--ca-accent)]" : ""}` }, heartPopKey)
+								})]
+							}),
+							/* @__PURE__ */ jsx("p", {
 								className: "font-mono-nums mt-3 text-2xl font-bold text-[var(--ca-text)]",
 								children: formatPKR(product.price)
-							}, void 0, false, {
-								fileName: _jsxFileName$9,
-								lineNumber: 296,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV("p", {
+							}),
+							/* @__PURE__ */ jsx("p", {
 								className: "mt-4 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 								children: product.description
-							}, void 0, false, {
-								fileName: _jsxFileName$9,
-								lineNumber: 299,
-								columnNumber: 15
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "mt-6 flex flex-wrap items-center justify-between gap-4 pt-2",
-								children: [product.sizes && /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("div", {
+								children: [product.sizes && /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsxs("div", {
 									className: "flex items-center gap-3",
-									children: [/* @__PURE__ */ jsxDEV("span", {
+									children: [/* @__PURE__ */ jsx("span", {
 										className: "text-xs font-medium text-[var(--ca-text-muted)]",
 										children: t.product.sizeLabel
-									}, void 0, false, {
-										fileName: _jsxFileName$9,
-										lineNumber: 308,
-										columnNumber: 23
-									}, this), /* @__PURE__ */ jsxDEV(Link, {
+									}), /* @__PURE__ */ jsxs(Link, {
 										to: localize("/size-guide"),
 										className: "inline-flex items-center gap-1 text-[11px] font-medium text-[var(--ca-accent)] hover:underline",
-										children: [/* @__PURE__ */ jsxDEV(Ruler, { className: "h-3 w-3" }, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 315,
-											columnNumber: 25
-										}, this), t.product.sizeGuideLink]
-									}, void 0, true, {
-										fileName: _jsxFileName$9,
-										lineNumber: 311,
-										columnNumber: 23
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 307,
-									columnNumber: 21
-								}, this), /* @__PURE__ */ jsxDEV("div", {
+										children: [/* @__PURE__ */ jsx(Ruler, { className: "h-3 w-3" }), t.product.sizeGuideLink]
+									})]
+								}), /* @__PURE__ */ jsx("div", {
 									className: "mt-1.5 flex gap-1.5",
-									children: product.sizes.map((sz) => /* @__PURE__ */ jsxDEV("button", {
+									children: product.sizes.map((sz) => /* @__PURE__ */ jsx("button", {
 										type: "button",
 										onClick: () => setSelectedSize(sz),
 										className: `rounded-lg border px-3 py-1.5 text-xs font-medium ${selectedSize === sz ? "border-[var(--ca-text)] bg-[var(--ca-text)] text-[var(--ca-bg)]" : "border-[var(--ca-border)] text-[var(--ca-text)]"}`,
 										children: sz
-									}, sz, false, {
-										fileName: _jsxFileName$9,
-										lineNumber: 321,
-										columnNumber: 25
-									}, this))
-								}, void 0, false, {
-									fileName: _jsxFileName$9,
-									lineNumber: 319,
-									columnNumber: 21
-								}, this)] }, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 306,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("span", {
+									}, sz))
+								})] }), /* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
 									className: "block text-xs font-medium text-[var(--ca-text-muted)]",
 									children: t.product.quantityLabel
-								}, void 0, false, {
-									fileName: _jsxFileName$9,
-									lineNumber: 339,
-									columnNumber: 19
-								}, this), /* @__PURE__ */ jsxDEV("div", {
+								}), /* @__PURE__ */ jsxs("div", {
 									className: "mt-1.5 inline-flex items-center rounded-xl border border-[var(--ca-border)]",
 									children: [
-										/* @__PURE__ */ jsxDEV("button", {
+										/* @__PURE__ */ jsx("button", {
 											type: "button",
+											disabled: !stockStatus.isAvailable,
 											onClick: () => setQuantity((q) => Math.max(1, q - 1)),
 											"aria-label": "Decrease quantity",
-											className: "p-2",
-											children: /* @__PURE__ */ jsxDEV(Minus, { className: "h-3.5 w-3.5" }, void 0, false, {
-												fileName: _jsxFileName$9,
-												lineNumber: 349,
-												columnNumber: 23
-											}, this)
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 343,
-											columnNumber: 21
-										}, this),
-										/* @__PURE__ */ jsxDEV("span", {
+											className: "p-2 disabled:opacity-40",
+											children: /* @__PURE__ */ jsx(Minus, { className: "h-3.5 w-3.5" })
+										}),
+										/* @__PURE__ */ jsx("span", {
 											className: "font-mono-nums min-w-[2rem] text-center text-sm font-medium",
-											children: quantity
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 351,
-											columnNumber: 21
-										}, this),
-										/* @__PURE__ */ jsxDEV("button", {
+											children: Math.min(quantity, maxQuantity)
+										}),
+										/* @__PURE__ */ jsx("button", {
 											type: "button",
-											onClick: () => setQuantity((q) => Math.min(20, q + 1)),
+											disabled: !stockStatus.isAvailable,
+											onClick: () => setQuantity((q) => Math.min(maxQuantity, q + 1)),
 											"aria-label": "Increase quantity",
-											className: "p-2",
-											children: /* @__PURE__ */ jsxDEV(Plus, { className: "h-3.5 w-3.5" }, void 0, false, {
-												fileName: _jsxFileName$9,
-												lineNumber: 360,
-												columnNumber: 23
-											}, this)
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 354,
-											columnNumber: 21
-										}, this)
+											className: "p-2 disabled:opacity-40",
+											children: /* @__PURE__ */ jsx(Plus, { className: "h-3.5 w-3.5" })
+										})
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 342,
-									columnNumber: 19
-								}, this)] }, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 338,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$9,
-								lineNumber: 304,
-								columnNumber: 15
-							}, this),
-							plans.length > 0 && calc && activePlan && /* @__PURE__ */ jsxDEV("div", {
+								})] })]
+							}),
+							plans.length > 0 && calc && activePlan && /* @__PURE__ */ jsxs("div", {
 								className: "mt-6 rounded-xl bg-[var(--ca-surface-subtle)] p-4 space-y-3",
 								children: [
-									/* @__PURE__ */ jsxDEV("div", {
+									/* @__PURE__ */ jsxs("div", {
 										className: "flex items-center justify-between",
-										children: [/* @__PURE__ */ jsxDEV("p", {
+										children: [/* @__PURE__ */ jsx("p", {
 											className: "text-xs font-semibold text-[var(--ca-text)]",
 											children: "Installment Plan Preview"
-										}, void 0, false, {
-											fileName: _jsxFileName$9,
-											lineNumber: 370,
-											columnNumber: 21
-										}, this), /* @__PURE__ */ jsxDEV("span", {
+										}), /* @__PURE__ */ jsxs("span", {
 											className: "font-mono-nums text-[11px] font-semibold text-[var(--ca-accent)]",
 											children: [calc.markupPercent, "% Interest"]
-										}, void 0, true, {
-											fileName: _jsxFileName$9,
-											lineNumber: 373,
-											columnNumber: 21
-										}, this)]
-									}, void 0, true, {
-										fileName: _jsxFileName$9,
-										lineNumber: 369,
-										columnNumber: 19
-									}, this),
-									/* @__PURE__ */ jsxDEV("div", {
+										})]
+									}),
+									/* @__PURE__ */ jsx("div", {
 										className: "flex flex-wrap gap-1.5",
-										children: plans.map((p) => /* @__PURE__ */ jsxDEV("button", {
+										children: plans.map((p) => /* @__PURE__ */ jsxs("button", {
 											type: "button",
 											onClick: () => setSelectedPlanId(p.id),
 											className: `rounded-[10px] px-2.5 py-1.5 text-xs font-medium ${selectedPlanId === p.id ? "bg-[var(--ca-accent)] text-[var(--ca-accent-fg)]" : "bg-[var(--ca-surface-solid)] text-[var(--ca-text-muted)]"}`,
@@ -7179,247 +4724,129 @@ function ProductDetailPage() {
 												p.markupPercent,
 												"%)"
 											]
-										}, p.id, true, {
-											fileName: _jsxFileName$9,
-											lineNumber: 379,
-											columnNumber: 23
-										}, this))
-									}, void 0, false, {
-										fileName: _jsxFileName$9,
-										lineNumber: 377,
-										columnNumber: 19
-									}, this),
-									/* @__PURE__ */ jsxDEV("dl", {
+										}, p.id))
+									}),
+									/* @__PURE__ */ jsxs("dl", {
 										className: "space-y-1 text-xs pt-2",
 										children: [
-											/* @__PURE__ */ jsxDEV("div", {
+											/* @__PURE__ */ jsxs("div", {
 												className: "flex justify-between",
-												children: [/* @__PURE__ */ jsxDEV("dt", {
+												children: [/* @__PURE__ */ jsxs("dt", {
 													className: "text-[var(--ca-text-muted)]",
 													children: [
 														"Interest (",
 														calc.markupPercent,
 														"%)"
 													]
-												}, void 0, true, {
-													fileName: _jsxFileName$9,
-													lineNumber: 395,
-													columnNumber: 23
-												}, this), /* @__PURE__ */ jsxDEV("dd", {
+												}), /* @__PURE__ */ jsxs("dd", {
 													className: "font-mono-nums font-medium text-[var(--ca-accent)]",
 													children: ["+ ", formatPKR(calc.markupAmount)]
-												}, void 0, true, {
-													fileName: _jsxFileName$9,
-													lineNumber: 396,
-													columnNumber: 23
-												}, this)]
-											}, void 0, true, {
-												fileName: _jsxFileName$9,
-												lineNumber: 394,
-												columnNumber: 21
-											}, this),
-											calc.advancePercent > 0 && /* @__PURE__ */ jsxDEV("div", {
+												})]
+											}),
+											calc.advancePercent > 0 && /* @__PURE__ */ jsxs("div", {
 												className: "flex justify-between",
-												children: [/* @__PURE__ */ jsxDEV("dt", {
+												children: [/* @__PURE__ */ jsxs("dt", {
 													className: "text-[var(--ca-text-muted)]",
 													children: [
 														"Advance (",
 														calc.advancePercent,
 														"%)"
 													]
-												}, void 0, true, {
-													fileName: _jsxFileName$9,
-													lineNumber: 402,
-													columnNumber: 25
-												}, this), /* @__PURE__ */ jsxDEV("dd", {
+												}), /* @__PURE__ */ jsx("dd", {
 													className: "font-mono-nums font-medium text-[var(--ca-text)]",
 													children: formatPKR(calc.advanceAmount)
-												}, void 0, false, {
-													fileName: _jsxFileName$9,
-													lineNumber: 403,
-													columnNumber: 25
-												}, this)]
-											}, void 0, true, {
-												fileName: _jsxFileName$9,
-												lineNumber: 401,
-												columnNumber: 23
-											}, this),
-											/* @__PURE__ */ jsxDEV("div", {
+												})]
+											}),
+											/* @__PURE__ */ jsxs("div", {
 												className: "flex justify-between",
-												children: [/* @__PURE__ */ jsxDEV("dt", {
+												children: [/* @__PURE__ */ jsxs("dt", {
 													className: "text-[var(--ca-text-muted)]",
 													children: [
 														"Monthly (",
 														calc.months,
 														" mos)"
 													]
-												}, void 0, true, {
-													fileName: _jsxFileName$9,
-													lineNumber: 409,
-													columnNumber: 23
-												}, this), /* @__PURE__ */ jsxDEV("dd", {
+												}), /* @__PURE__ */ jsxs("dd", {
 													className: "font-mono-nums font-semibold text-[var(--ca-text)]",
 													children: [formatPKR(calc.monthlyAmount), " / mo"]
-												}, void 0, true, {
-													fileName: _jsxFileName$9,
-													lineNumber: 410,
-													columnNumber: 23
-												}, this)]
-											}, void 0, true, {
-												fileName: _jsxFileName$9,
-												lineNumber: 408,
-												columnNumber: 21
-											}, this),
-											/* @__PURE__ */ jsxDEV("div", {
+												})]
+											}),
+											/* @__PURE__ */ jsxs("div", {
 												className: "flex justify-between pt-1",
-												children: [/* @__PURE__ */ jsxDEV("dt", {
+												children: [/* @__PURE__ */ jsx("dt", {
 													className: "font-semibold text-[var(--ca-text)]",
 													children: "Total on Plan"
-												}, void 0, false, {
-													fileName: _jsxFileName$9,
-													lineNumber: 415,
-													columnNumber: 23
-												}, this), /* @__PURE__ */ jsxDEV("dd", {
+												}), /* @__PURE__ */ jsx("dd", {
 													className: "font-mono-nums font-bold text-[var(--ca-text)]",
 													children: formatPKR(calc.totalPayable)
-												}, void 0, false, {
-													fileName: _jsxFileName$9,
-													lineNumber: 416,
-													columnNumber: 23
-												}, this)]
-											}, void 0, true, {
-												fileName: _jsxFileName$9,
-												lineNumber: 414,
-												columnNumber: 21
-											}, this)
+												})]
+											})
 										]
-									}, void 0, true, {
-										fileName: _jsxFileName$9,
-										lineNumber: 393,
-										columnNumber: 19
-									}, this),
-									/* @__PURE__ */ jsxDEV("button", {
+									}),
+									/* @__PURE__ */ jsx("button", {
 										type: "button",
-										onClick: () => openBuySheet(product, quantity, selectedSize, {
+										disabled: !stockStatus.isAvailable,
+										onClick: () => openBuySheet(product, Math.min(quantity, maxQuantity), selectedSize, {
 											paymentMethod: "installments",
 											planId: activePlan.id
 										}),
-										className: "w-full rounded-xl border border-[var(--ca-accent)]/40 bg-[var(--ca-accent)]/10 py-2 text-xs font-semibold text-[var(--ca-text)] hover:bg-[var(--ca-accent)]/20",
-										children: [
-											"Buy on ",
-											activePlan.label,
-											" Plan (",
-											formatPKR(calc.totalPayable),
-											")"
-										]
-									}, void 0, true, {
-										fileName: _jsxFileName$9,
-										lineNumber: 421,
-										columnNumber: 19
-									}, this)
+										className: `w-full rounded-xl border border-[var(--ca-accent)]/40 bg-[var(--ca-accent)]/10 py-2 text-xs font-semibold text-[var(--ca-text)] ${stockStatus.isAvailable ? "hover:bg-[var(--ca-accent)]/20" : "cursor-not-allowed opacity-50"}`,
+										children: stockStatus.isAvailable ? `Buy on ${activePlan.label} Plan (${formatPKR(calc.totalPayable)})` : t.product.outOfStock
+									})
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$9,
-								lineNumber: 368,
-								columnNumber: 17
-							}, this),
-							/* @__PURE__ */ jsxDEV("div", {
+							}),
+							!stockStatus.isAvailable && /* @__PURE__ */ jsx("p", {
+								role: "status",
+								className: "mt-4 rounded-xl bg-[var(--ca-surface-subtle)] px-3.5 py-2.5 text-xs text-[var(--ca-text-muted)]",
+								children: "This piece is currently out of stock. Save it to your wishlist or message us on WhatsApp for restock timing."
+							}),
+							/* @__PURE__ */ jsxs("div", {
 								className: "mt-6 flex flex-col gap-3 sm:flex-row",
-								children: [/* @__PURE__ */ jsxDEV(CAProcessButton, {
+								children: [/* @__PURE__ */ jsx(CAProcessButton, {
 									type: "button",
+									disabled: !stockStatus.isAvailable,
 									status: addedStatus,
 									onClick: () => {
-										addItem(product, quantity, selectedSize);
+										if (!stockStatus.isAvailable) return;
+										addItem(product, Math.min(quantity, maxQuantity), selectedSize);
 										setAddedStatus("success");
 										showToast(`Added ${product.title} to bag.`, "success");
 										window.setTimeout(() => setAddedStatus("idle"), 900);
 									},
-									className: "flex-1 rounded-xl border border-[var(--ca-border)] py-3 text-sm font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
+									className: `flex-1 rounded-xl border border-[var(--ca-border)] py-3 text-sm font-medium text-[var(--ca-text)] ${stockStatus.isAvailable ? "hover:bg-[var(--ca-surface-subtle)]" : "cursor-not-allowed opacity-50"}`,
 									children: t.product.addToBag
-								}, void 0, false, {
-									fileName: _jsxFileName$9,
-									lineNumber: 437,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("button", {
+								}), /* @__PURE__ */ jsxs("button", {
 									type: "button",
-									onClick: () => openBuySheet(product, quantity, selectedSize),
-									className: "btn-press inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ca-text)] py-3 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
-									children: [/* @__PURE__ */ jsxDEV(ShoppingBag, { className: "h-4 w-4" }, void 0, false, {
-										fileName: _jsxFileName$9,
-										lineNumber: 455,
-										columnNumber: 19
-									}, this), t.product.buyNow]
-								}, void 0, true, {
-									fileName: _jsxFileName$9,
-									lineNumber: 450,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$9,
-								lineNumber: 436,
-								columnNumber: 15
-							}, this)
+									disabled: !stockStatus.isAvailable,
+									onClick: () => openBuySheet(product, Math.min(quantity, maxQuantity), selectedSize),
+									className: `inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold ${stockStatus.isAvailable ? "btn-press bg-[var(--ca-text)] text-[var(--ca-bg)] hover:opacity-90" : "cursor-not-allowed bg-[var(--ca-surface-subtle)] text-[var(--ca-text-muted)] opacity-60"}`,
+									children: [/* @__PURE__ */ jsx(ShoppingBag, { className: "h-4 w-4" }), stockStatus.isAvailable ? t.product.buyNow : t.product.outOfStock]
+								})]
+							})
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$9,
-						lineNumber: 246,
-						columnNumber: 13
-					}, this)
-				}, void 0, false, {
-					fileName: _jsxFileName$9,
-					lineNumber: 245,
-					columnNumber: 11
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$9,
-				lineNumber: 203,
-				columnNumber: 9
-			}, this),
-			relatedProducts.length > 0 && /* @__PURE__ */ jsxDEV("div", {
+					})
+				})]
+			}),
+			relatedProducts.length > 0 && /* @__PURE__ */ jsxs("div", {
 				className: "mt-16",
-				children: [/* @__PURE__ */ jsxDEV("h2", {
+				children: [/* @__PURE__ */ jsx("h2", {
 					className: "font-display text-2xl font-semibold text-[var(--ca-text)] sm:text-3xl",
 					children: t.product.relatedTitle
-				}, void 0, false, {
-					fileName: _jsxFileName$9,
-					lineNumber: 466,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+				}), /* @__PURE__ */ jsx("div", {
 					className: "mt-5 grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4",
-					children: relatedProducts.map((rel) => /* @__PURE__ */ jsxDEV(ProductCard, { product: rel }, rel.id, false, {
-						fileName: _jsxFileName$9,
-						lineNumber: 471,
-						columnNumber: 17
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$9,
-					lineNumber: 469,
-					columnNumber: 13
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$9,
-				lineNumber: 465,
-				columnNumber: 11
-			}, this)
+					children: relatedProducts.map((rel) => /* @__PURE__ */ jsx(ProductCard, { product: rel }, rel.id))
+				})]
+			})
 		]
-	}, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 185,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$9,
-		lineNumber: 182,
-		columnNumber: 5
-	}, this);
+	})] });
 }
 // src/pages/AboutPage.tsx
-var _jsxFileName$8 = "/app/applet/src/pages/AboutPage.tsx";
 function AboutPage() {
 	const { t, locale, isRtl, localize } = useLocale();
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
 	const canonicalPath = localize("/about");
 	const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `ہمارے بارے میں — ${t.brand}` : "About Cinematic Arts (CA) — Peshawar Clothing Store",
 		description: t.about.lead,
 		canonicalPath,
@@ -7431,130 +4858,65 @@ function AboutPage() {
 			name: t.nav.about,
 			path: canonicalPath
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$8,
-		lineNumber: 18,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("article", {
+	}), /* @__PURE__ */ jsxs("article", {
 		className: "mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.about }] }, void 0, false, {
-			fileName: _jsxFileName$8,
-			lineNumber: 40,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.about }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-6 sm:p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("h1", {
+				/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 					children: t.about.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$8,
-					lineNumber: 48,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("p", {
+				}),
+				/* @__PURE__ */ jsx("p", {
 					className: "mt-4 max-w-2xl text-base leading-relaxed text-[var(--ca-text-muted)]",
 					children: t.about.lead
-				}, void 0, false, {
-					fileName: _jsxFileName$8,
-					lineNumber: 51,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+				}),
+				/* @__PURE__ */ jsx("div", {
 					className: "mt-8 grid grid-cols-1 gap-6 md:grid-cols-3",
-					children: t.about.sections.map((section) => /* @__PURE__ */ jsxDEV("section", {
+					children: t.about.sections.map((section) => /* @__PURE__ */ jsxs("section", {
 						className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
-						children: [/* @__PURE__ */ jsxDEV("h2", {
+						children: [/* @__PURE__ */ jsx("h2", {
 							className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 							children: section.heading
-						}, void 0, false, {
-							fileName: _jsxFileName$8,
-							lineNumber: 61,
-							columnNumber: 17
-						}, this), /* @__PURE__ */ jsxDEV("p", {
+						}), /* @__PURE__ */ jsx("p", {
 							className: "mt-2.5 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 							children: section.body
-						}, void 0, false, {
-							fileName: _jsxFileName$8,
-							lineNumber: 64,
-							columnNumber: 17
-						}, this)]
-					}, section.heading, true, {
-						fileName: _jsxFileName$8,
-						lineNumber: 57,
-						columnNumber: 15
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$8,
-					lineNumber: 55,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+						})]
+					}, section.heading))
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "mt-8 flex flex-wrap gap-3",
 					children: [
-						/* @__PURE__ */ jsxDEV(Link, {
+						/* @__PURE__ */ jsxs(Link, {
 							to: localize("/shop"),
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
-							children: [t.about.ctaShop, /* @__PURE__ */ jsxDEV(ArrowIcon, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$8,
-								lineNumber: 77,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$8,
-							lineNumber: 72,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+							children: [t.about.ctaShop, /* @__PURE__ */ jsx(ArrowIcon, { className: "h-4 w-4" })]
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/contact"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-3 text-sm font-medium text-[var(--ca-text)] hover:opacity-85",
 							children: t.about.ctaContact
-						}, void 0, false, {
-							fileName: _jsxFileName$8,
-							lineNumber: 79,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/faq"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-3 text-sm font-medium text-[var(--ca-text)] hover:opacity-85",
 							children: t.nav.faq
-						}, void 0, false, {
-							fileName: _jsxFileName$8,
-							lineNumber: 85,
-							columnNumber: 13
-						}, this)
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$8,
-					lineNumber: 71,
-					columnNumber: 11
-				}, this)
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$8,
-			lineNumber: 47,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$8,
-		lineNumber: 39,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$8,
-		lineNumber: 17,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/FaqPage.tsx
-var _jsxFileName$7 = "/app/applet/src/pages/FaqPage.tsx";
 function FaqPage() {
 	const { t, locale, localize } = useLocale();
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
 	const canonicalPath = localize("/faq");
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `اقساط اور آرڈرز سوالات — ${t.brand}` : "Installment & COD FAQ — Cinematic Arts (CA)",
 		description: t.faq.intro,
 		canonicalPath,
@@ -7566,140 +4928,67 @@ function FaqPage() {
 			name: t.nav.faq,
 			path: canonicalPath
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$7,
-		lineNumber: 16,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.faq }] }, void 0, false, {
-			fileName: _jsxFileName$7,
-			lineNumber: 38,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.faq }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-6 sm:p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("h1", {
+				/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 					children: t.faq.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$7,
-					lineNumber: 46,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("p", {
+				}),
+				/* @__PURE__ */ jsx("p", {
 					className: "mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ca-text-muted)] sm:text-base",
 					children: t.faq.intro
-				}, void 0, false, {
-					fileName: _jsxFileName$7,
-					lineNumber: 49,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+				}),
+				/* @__PURE__ */ jsx("div", {
 					className: "mt-8 space-y-4",
-					children: t.faq.items.map((item) => /* @__PURE__ */ jsxDEV("article", {
+					children: t.faq.items.map((item) => /* @__PURE__ */ jsxs("article", {
 						id: item.id,
 						className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5 sm:p-6",
-						children: [/* @__PURE__ */ jsxDEV("h2", {
+						children: [/* @__PURE__ */ jsx("h2", {
 							className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 							children: item.question
-						}, void 0, false, {
-							fileName: _jsxFileName$7,
-							lineNumber: 60,
-							columnNumber: 17
-						}, this), /* @__PURE__ */ jsxDEV("p", {
+						}), /* @__PURE__ */ jsx("p", {
 							className: "mt-2 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 							children: item.answer
-						}, void 0, false, {
-							fileName: _jsxFileName$7,
-							lineNumber: 63,
-							columnNumber: 17
-						}, this)]
-					}, item.id, true, {
-						fileName: _jsxFileName$7,
-						lineNumber: 55,
-						columnNumber: 15
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$7,
-					lineNumber: 53,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+						})]
+					}, item.id))
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "mt-10 flex flex-col items-start justify-between gap-4 rounded-xl bg-[var(--ca-surface-subtle)] p-6 sm:flex-row sm:items-center",
-					children: [/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: t.faq.ctaTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$7,
-						lineNumber: 72,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("p", {
+					}), /* @__PURE__ */ jsx("p", {
 						className: "mt-1 text-sm text-[var(--ca-text-muted)]",
 						children: t.faq.ctaDesc
-					}, void 0, false, {
-						fileName: _jsxFileName$7,
-						lineNumber: 75,
-						columnNumber: 15
-					}, this)] }, void 0, true, {
-						fileName: _jsxFileName$7,
-						lineNumber: 71,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("div", {
+					})] }), /* @__PURE__ */ jsxs("div", {
 						className: "flex flex-wrap gap-3",
-						children: [/* @__PURE__ */ jsxDEV(Link, {
+						children: [/* @__PURE__ */ jsx(Link, {
 							to: localize("/contact"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
 							children: t.faq.ctaButton
-						}, void 0, false, {
-							fileName: _jsxFileName$7,
-							lineNumber: 78,
-							columnNumber: 15
-						}, this), /* @__PURE__ */ jsxDEV(Link, {
+						}), /* @__PURE__ */ jsx(Link, {
 							to: localize("/shipping"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-solid)] px-4 py-2.5 text-xs font-semibold text-[var(--ca-text)]",
 							children: t.nav.shipping
-						}, void 0, false, {
-							fileName: _jsxFileName$7,
-							lineNumber: 84,
-							columnNumber: 15
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$7,
-						lineNumber: 77,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$7,
-					lineNumber: 70,
-					columnNumber: 11
-				}, this)
+						})]
+					})]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$7,
-			lineNumber: 45,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$7,
-		lineNumber: 37,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$7,
-		lineNumber: 15,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/SizeGuidePage.tsx
-var _jsxFileName$6 = "/app/applet/src/pages/SizeGuidePage.tsx";
 function SizeGuidePage() {
 	const { t, locale, localize } = useLocale();
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
 	const canonicalPath = localize("/size-guide");
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `سائز گائیڈ — ${t.brand}` : "Clothing Size Guide — Cinematic Arts (CA)",
 		description: t.sizeGuide.intro,
 		canonicalPath,
@@ -7711,426 +5000,189 @@ function SizeGuidePage() {
 			name: t.nav.sizeGuide,
 			path: canonicalPath
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$6,
-		lineNumber: 16,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.sizeGuide }] }, void 0, false, {
-			fileName: _jsxFileName$6,
-			lineNumber: 37,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.sizeGuide }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel space-y-8 rounded-2xl p-6 sm:p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h1", {
+				/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 					children: t.sizeGuide.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$6,
-					lineNumber: 46,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("p", {
+				}), /* @__PURE__ */ jsx("p", {
 					className: "mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ca-text-muted)] sm:text-base",
 					children: t.sizeGuide.intro
-				}, void 0, false, {
-					fileName: _jsxFileName$6,
-					lineNumber: 49,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$6,
-					lineNumber: 45,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", { children: [
-					/* @__PURE__ */ jsxDEV("h2", {
+				})] }),
+				/* @__PURE__ */ jsxs("section", { children: [
+					/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: t.sizeGuide.unstitchedTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 55,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("p", {
+					}),
+					/* @__PURE__ */ jsx("p", {
 						className: "mt-1 text-sm text-[var(--ca-text-muted)]",
 						children: t.sizeGuide.unstitchedDesc
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 58,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", {
+					}),
+					/* @__PURE__ */ jsx("div", {
 						className: "mt-4 overflow-x-auto rounded-xl bg-[var(--ca-surface-subtle)] p-3",
-						children: /* @__PURE__ */ jsxDEV("table", {
+						children: /* @__PURE__ */ jsxs("table", {
 							className: "w-full text-start text-sm",
-							children: [/* @__PURE__ */ jsxDEV("thead", { children: /* @__PURE__ */ jsxDEV("tr", {
+							children: [/* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", {
 								className: "text-xs font-semibold text-[var(--ca-text-muted)]",
 								children: [
-									/* @__PURE__ */ jsxDEV("th", {
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "حصہ" : "Fabric Piece"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 65,
-										columnNumber: 21
-									}, this),
-									/* @__PURE__ */ jsxDEV("th", {
+									}),
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "لمبائی" : "Length"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 66,
-										columnNumber: 21
-									}, this),
-									/* @__PURE__ */ jsxDEV("th", {
+									}),
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "نوٹ" : "Tailoring Note"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 67,
-										columnNumber: 21
-									}, this)
+									})
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$6,
-								lineNumber: 64,
-								columnNumber: 19
-							}, this) }, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 63,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("tbody", { children: t.sizeGuide.unstitchedRows.map((row) => /* @__PURE__ */ jsxDEV("tr", { children: [
-								/* @__PURE__ */ jsxDEV("td", {
+							}) }), /* @__PURE__ */ jsx("tbody", { children: t.sizeGuide.unstitchedRows.map((row) => /* @__PURE__ */ jsxs("tr", { children: [
+								/* @__PURE__ */ jsx("td", {
 									className: "px-3 py-2.5 font-medium text-[var(--ca-text)]",
 									children: row.piece
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 73,
-									columnNumber: 23
-								}, this),
-								/* @__PURE__ */ jsxDEV("td", {
+								}),
+								/* @__PURE__ */ jsx("td", {
 									className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text)]",
 									children: row.measurement
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 74,
-									columnNumber: 23
-								}, this),
-								/* @__PURE__ */ jsxDEV("td", {
+								}),
+								/* @__PURE__ */ jsx("td", {
 									className: "px-3 py-2.5 text-[var(--ca-text-muted)]",
 									children: row.note
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 75,
-									columnNumber: 23
-								}, this)
-							] }, row.piece, true, {
-								fileName: _jsxFileName$6,
-								lineNumber: 72,
-								columnNumber: 21
-							}, this)) }, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 70,
-								columnNumber: 17
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$6,
-							lineNumber: 62,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 61,
-						columnNumber: 13
-					}, this)
-				] }, void 0, true, {
-					fileName: _jsxFileName$6,
-					lineNumber: 54,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", { children: [
-					/* @__PURE__ */ jsxDEV("h2", {
+								})
+							] }, row.piece)) })]
+						})
+					})
+				] }),
+				/* @__PURE__ */ jsxs("section", { children: [
+					/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: t.sizeGuide.apparelTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 84,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("p", {
+					}),
+					/* @__PURE__ */ jsx("p", {
 						className: "mt-1 text-sm text-[var(--ca-text-muted)]",
 						children: t.sizeGuide.apparelDesc
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 87,
-						columnNumber: 13
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", {
+					}),
+					/* @__PURE__ */ jsx("div", {
 						className: "mt-4 overflow-x-auto rounded-xl bg-[var(--ca-surface-subtle)] p-3",
-						children: /* @__PURE__ */ jsxDEV("table", {
+						children: /* @__PURE__ */ jsxs("table", {
 							className: "w-full text-start text-sm",
-							children: [/* @__PURE__ */ jsxDEV("thead", { children: /* @__PURE__ */ jsxDEV("tr", {
+							children: [/* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", {
 								className: "text-xs font-semibold text-[var(--ca-text-muted)]",
 								children: [
-									/* @__PURE__ */ jsxDEV("th", {
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "سائز" : "Size"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 94,
-										columnNumber: 21
-									}, this),
-									/* @__PURE__ */ jsxDEV("th", {
+									}),
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "چھاتی" : "Chest"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 95,
-										columnNumber: 21
-									}, this),
-									/* @__PURE__ */ jsxDEV("th", {
+									}),
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "لمبائی" : "Length"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 96,
-										columnNumber: 21
-									}, this),
-									/* @__PURE__ */ jsxDEV("th", {
+									}),
+									/* @__PURE__ */ jsx("th", {
 										className: "px-3 py-2 text-start",
 										children: locale === "ur" ? "کمر" : "Waist Fit"
-									}, void 0, false, {
-										fileName: _jsxFileName$6,
-										lineNumber: 97,
-										columnNumber: 21
-									}, this)
+									})
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$6,
-								lineNumber: 93,
-								columnNumber: 19
-							}, this) }, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 92,
-								columnNumber: 17
-							}, this), /* @__PURE__ */ jsxDEV("tbody", { children: t.sizeGuide.apparelRows.map((row) => /* @__PURE__ */ jsxDEV("tr", { children: [
-								/* @__PURE__ */ jsxDEV("td", {
+							}) }), /* @__PURE__ */ jsx("tbody", { children: t.sizeGuide.apparelRows.map((row) => /* @__PURE__ */ jsxs("tr", { children: [
+								/* @__PURE__ */ jsx("td", {
 									className: "px-3 py-2.5 font-semibold text-[var(--ca-text)]",
 									children: row.size
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 103,
-									columnNumber: 23
-								}, this),
-								/* @__PURE__ */ jsxDEV("td", {
+								}),
+								/* @__PURE__ */ jsx("td", {
 									className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text-muted)]",
 									children: row.chest
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 104,
-									columnNumber: 23
-								}, this),
-								/* @__PURE__ */ jsxDEV("td", {
+								}),
+								/* @__PURE__ */ jsx("td", {
 									className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text-muted)]",
 									children: row.length
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 105,
-									columnNumber: 23
-								}, this),
-								/* @__PURE__ */ jsxDEV("td", {
+								}),
+								/* @__PURE__ */ jsx("td", {
 									className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text-muted)]",
 									children: row.waist
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 106,
-									columnNumber: 23
-								}, this)
-							] }, row.size, true, {
-								fileName: _jsxFileName$6,
-								lineNumber: 102,
-								columnNumber: 21
-							}, this)) }, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 100,
-								columnNumber: 17
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$6,
-							lineNumber: 91,
-							columnNumber: 15
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 90,
-						columnNumber: 13
-					}, this)
-				] }, void 0, true, {
-					fileName: _jsxFileName$6,
-					lineNumber: 83,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", { children: [/* @__PURE__ */ jsxDEV("h2", {
+								})
+							] }, row.size)) })]
+						})
+					})
+				] }),
+				/* @__PURE__ */ jsxs("section", { children: [/* @__PURE__ */ jsx("h2", {
 					className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 					children: t.sizeGuide.boysTitle
-				}, void 0, false, {
-					fileName: _jsxFileName$6,
-					lineNumber: 115,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+				}), /* @__PURE__ */ jsx("div", {
 					className: "mt-4 overflow-x-auto rounded-xl bg-[var(--ca-surface-subtle)] p-3",
-					children: /* @__PURE__ */ jsxDEV("table", {
+					children: /* @__PURE__ */ jsxs("table", {
 						className: "w-full text-start text-sm",
-						children: [/* @__PURE__ */ jsxDEV("thead", { children: /* @__PURE__ */ jsxDEV("tr", {
+						children: [/* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", {
 							className: "text-xs font-semibold text-[var(--ca-text-muted)]",
 							children: [
-								/* @__PURE__ */ jsxDEV("th", {
+								/* @__PURE__ */ jsx("th", {
 									className: "px-3 py-2 text-start",
 									children: locale === "ur" ? "سائز" : "Size"
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 122,
-									columnNumber: 21
-								}, this),
-								/* @__PURE__ */ jsxDEV("th", {
+								}),
+								/* @__PURE__ */ jsx("th", {
 									className: "px-3 py-2 text-start",
 									children: locale === "ur" ? "کمر" : "Waist"
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 123,
-									columnNumber: 21
-								}, this),
-								/* @__PURE__ */ jsxDEV("th", {
+								}),
+								/* @__PURE__ */ jsx("th", {
 									className: "px-3 py-2 text-start",
 									children: locale === "ur" ? "لمبائی" : "Outseam"
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 124,
-									columnNumber: 21
-								}, this),
-								/* @__PURE__ */ jsxDEV("th", {
+								}),
+								/* @__PURE__ */ jsx("th", {
 									className: "px-3 py-2 text-start",
 									children: locale === "ur" ? "عمر (تقریباً)" : "Approx. Age"
-								}, void 0, false, {
-									fileName: _jsxFileName$6,
-									lineNumber: 125,
-									columnNumber: 21
-								}, this)
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$6,
-							lineNumber: 121,
-							columnNumber: 19
-						}, this) }, void 0, false, {
-							fileName: _jsxFileName$6,
-							lineNumber: 120,
-							columnNumber: 17
-						}, this), /* @__PURE__ */ jsxDEV("tbody", { children: t.sizeGuide.boysRows.map((row) => /* @__PURE__ */ jsxDEV("tr", { children: [
-							/* @__PURE__ */ jsxDEV("td", {
+						}) }), /* @__PURE__ */ jsx("tbody", { children: t.sizeGuide.boysRows.map((row) => /* @__PURE__ */ jsxs("tr", { children: [
+							/* @__PURE__ */ jsx("td", {
 								className: "px-3 py-2.5 font-semibold text-[var(--ca-text)]",
 								children: row.size
-							}, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 131,
-								columnNumber: 23
-							}, this),
-							/* @__PURE__ */ jsxDEV("td", {
+							}),
+							/* @__PURE__ */ jsx("td", {
 								className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text-muted)]",
 								children: row.waist
-							}, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 132,
-								columnNumber: 23
-							}, this),
-							/* @__PURE__ */ jsxDEV("td", {
+							}),
+							/* @__PURE__ */ jsx("td", {
 								className: "font-mono-nums px-3 py-2.5 text-[var(--ca-text-muted)]",
 								children: row.length
-							}, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 133,
-								columnNumber: 23
-							}, this),
-							/* @__PURE__ */ jsxDEV("td", {
+							}),
+							/* @__PURE__ */ jsx("td", {
 								className: "px-3 py-2.5 text-[var(--ca-text-muted)]",
 								children: row.ageApprox
-							}, void 0, false, {
-								fileName: _jsxFileName$6,
-								lineNumber: 134,
-								columnNumber: 23
-							}, this)
-						] }, row.size, true, {
-							fileName: _jsxFileName$6,
-							lineNumber: 130,
-							columnNumber: 21
-						}, this)) }, void 0, false, {
-							fileName: _jsxFileName$6,
-							lineNumber: 128,
-							columnNumber: 17
-						}, this)]
-					}, void 0, true, {
-						fileName: _jsxFileName$6,
-						lineNumber: 119,
-						columnNumber: 15
-					}, this)
-				}, void 0, false, {
-					fileName: _jsxFileName$6,
-					lineNumber: 118,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$6,
-					lineNumber: 114,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+							})
+						] }, row.size)) })]
+					})
+				})] }),
+				/* @__PURE__ */ jsxs("div", {
 					className: "flex flex-col items-start justify-between gap-4 rounded-xl bg-[var(--ca-surface-subtle)] p-5 sm:flex-row sm:items-center",
-					children: [/* @__PURE__ */ jsxDEV("p", {
+					children: [/* @__PURE__ */ jsx("p", {
 						className: "text-sm text-[var(--ca-text-muted)]",
 						children: t.sizeGuide.careNote
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 143,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV(Link, {
+					}), /* @__PURE__ */ jsx(Link, {
 						to: localize("/shop"),
 						className: "btn-press inline-flex min-h-[44px] shrink-0 items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
 						children: t.hero.shopCollection
-					}, void 0, false, {
-						fileName: _jsxFileName$6,
-						lineNumber: 144,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$6,
-					lineNumber: 142,
-					columnNumber: 11
-				}, this)
+					})]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$6,
-			lineNumber: 44,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$6,
-		lineNumber: 36,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$6,
-		lineNumber: 15,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/ShippingPage.tsx
-var _jsxFileName$5 = "/app/applet/src/pages/ShippingPage.tsx";
 function ShippingPage() {
 	const { t, locale, localize } = useLocale();
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
 	const canonicalPath = localize("/shipping");
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `ڈیلیوری اور واپسی — ${t.brand}` : "Shipping, COD & 7-Day Returns — Cinematic Arts",
 		description: t.shipping.intro,
 		canonicalPath,
@@ -8142,196 +5194,87 @@ function ShippingPage() {
 			name: t.nav.shipping,
 			path: canonicalPath
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$5,
-		lineNumber: 17,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.shipping }] }, void 0, false, {
-			fileName: _jsxFileName$5,
-			lineNumber: 38,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.shipping }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel space-y-8 rounded-2xl p-6 sm:p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("div", { children: [/* @__PURE__ */ jsxDEV("h1", {
+				/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 					children: t.shipping.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$5,
-					lineNumber: 47,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("p", {
+				}), /* @__PURE__ */ jsx("p", {
 					className: "mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ca-text-muted)] sm:text-base",
 					children: t.shipping.intro
-				}, void 0, false, {
-					fileName: _jsxFileName$5,
-					lineNumber: 50,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$5,
-					lineNumber: 46,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", { children: [/* @__PURE__ */ jsxDEV("div", {
+				})] }),
+				/* @__PURE__ */ jsxs("section", { children: [/* @__PURE__ */ jsxs("div", {
 					className: "flex items-center gap-2",
-					children: [/* @__PURE__ */ jsxDEV(Truck, { className: "h-5 w-5 text-[var(--ca-accent)]" }, void 0, false, {
-						fileName: _jsxFileName$5,
-						lineNumber: 57,
-						columnNumber: 15
-					}, this), /* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsx(Truck, { className: "h-5 w-5 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: t.shipping.zonesTitle
-					}, void 0, false, {
-						fileName: _jsxFileName$5,
-						lineNumber: 58,
-						columnNumber: 15
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$5,
-					lineNumber: 56,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("div", {
+					})]
+				}), /* @__PURE__ */ jsx("div", {
 					className: "mt-4 grid grid-cols-1 gap-4 md:grid-cols-3",
-					children: t.shipping.zones.map((zone) => /* @__PURE__ */ jsxDEV("div", {
+					children: t.shipping.zones.map((zone) => /* @__PURE__ */ jsxs("div", {
 						className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
 						children: [
-							/* @__PURE__ */ jsxDEV("p", {
+							/* @__PURE__ */ jsx("p", {
 								className: "text-sm font-semibold text-[var(--ca-text)]",
 								children: zone.region
-							}, void 0, false, {
-								fileName: _jsxFileName$5,
-								lineNumber: 69,
-								columnNumber: 19
-							}, this),
-							/* @__PURE__ */ jsxDEV("p", {
+							}),
+							/* @__PURE__ */ jsx("p", {
 								className: "font-mono-nums mt-2 text-base font-bold text-[var(--ca-accent)]",
 								children: zone.eta
-							}, void 0, false, {
-								fileName: _jsxFileName$5,
-								lineNumber: 70,
-								columnNumber: 19
-							}, this),
-							/* @__PURE__ */ jsxDEV("p", {
+							}),
+							/* @__PURE__ */ jsx("p", {
 								className: "mt-1.5 text-xs text-[var(--ca-text-muted)]",
 								children: zone.payment
-							}, void 0, false, {
-								fileName: _jsxFileName$5,
-								lineNumber: 73,
-								columnNumber: 19
-							}, this)
+							})
 						]
-					}, zone.region, true, {
-						fileName: _jsxFileName$5,
-						lineNumber: 65,
-						columnNumber: 17
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$5,
-					lineNumber: 63,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$5,
-					lineNumber: 55,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", { children: [/* @__PURE__ */ jsxDEV("h2", {
+					}, zone.region))
+				})] }),
+				/* @__PURE__ */ jsxs("section", { children: [/* @__PURE__ */ jsx("h2", {
 					className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 					children: t.shipping.returnsTitle
-				}, void 0, false, {
-					fileName: _jsxFileName$5,
-					lineNumber: 80,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("ul", {
+				}), /* @__PURE__ */ jsx("ul", {
 					className: "mt-4 space-y-3",
-					children: t.shipping.returnsPoints.map((point, idx) => /* @__PURE__ */ jsxDEV("li", {
+					children: t.shipping.returnsPoints.map((point, idx) => /* @__PURE__ */ jsxs("li", {
 						className: "flex items-start gap-3 rounded-xl bg-[var(--ca-surface-subtle)] p-4 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-						children: [/* @__PURE__ */ jsxDEV(CheckCircle2, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }, void 0, false, {
-							fileName: _jsxFileName$5,
-							lineNumber: 89,
-							columnNumber: 19
-						}, this), /* @__PURE__ */ jsxDEV("span", { children: point }, void 0, false, {
-							fileName: _jsxFileName$5,
-							lineNumber: 90,
-							columnNumber: 19
-						}, this)]
-					}, idx, true, {
-						fileName: _jsxFileName$5,
-						lineNumber: 85,
-						columnNumber: 17
-					}, this))
-				}, void 0, false, {
-					fileName: _jsxFileName$5,
-					lineNumber: 83,
-					columnNumber: 13
-				}, this)] }, void 0, true, {
-					fileName: _jsxFileName$5,
-					lineNumber: 79,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+						children: [/* @__PURE__ */ jsx(CheckCircle2, { className: "mt-0.5 h-4 w-4 shrink-0 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: point })]
+					}, idx))
+				})] }),
+				/* @__PURE__ */ jsxs("div", {
 					className: "flex flex-wrap gap-3",
 					children: [
-						/* @__PURE__ */ jsxDEV(Link, {
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/size-guide"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-text)]",
 							children: t.nav.sizeGuide
-						}, void 0, false, {
-							fileName: _jsxFileName$5,
-							lineNumber: 97,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/faq"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-text)]",
 							children: t.nav.faq
-						}, void 0, false, {
-							fileName: _jsxFileName$5,
-							lineNumber: 103,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/shop"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
 							children: t.hero.shopCollection
-						}, void 0, false, {
-							fileName: _jsxFileName$5,
-							lineNumber: 109,
-							columnNumber: 13
-						}, this)
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$5,
-					lineNumber: 96,
-					columnNumber: 11
-				}, this)
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$5,
-			lineNumber: 45,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$5,
-		lineNumber: 37,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$5,
-		lineNumber: 16,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/ContactPage.tsx
-var _jsxFileName$4 = "/app/applet/src/pages/ContactPage.tsx";
 function ContactPage() {
 	const { t, locale, localize } = useLocale();
 	const origin = typeof window !== "undefined" ? window.location.origin : STORE_CONFIG.siteUrl;
 	const canonicalPath = localize("/contact");
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `رابطہ اور پتہ — ${t.brand}` : "Contact Store & WhatsApp — Cinematic Arts Peshawar",
 		description: t.contact.intro,
 		canonicalPath,
@@ -8343,77 +5286,41 @@ function ContactPage() {
 			name: t.nav.contact,
 			path: canonicalPath
 		}], origin)]
-	}, void 0, false, {
-		fileName: _jsxFileName$4,
-		lineNumber: 17,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsxs("section", {
 		className: "mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.contact }] }, void 0, false, {
-			fileName: _jsxFileName$4,
-			lineNumber: 39,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.contact }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-6 sm:p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("h1", {
+				/* @__PURE__ */ jsx("h1", {
 					className: "font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-5xl",
 					children: t.contact.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$4,
-					lineNumber: 47,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("p", {
+				}),
+				/* @__PURE__ */ jsx("p", {
 					className: "mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ca-text-muted)] sm:text-base",
 					children: t.contact.intro
-				}, void 0, false, {
-					fileName: _jsxFileName$4,
-					lineNumber: 50,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2",
 					children: [
-						/* @__PURE__ */ jsxDEV("div", {
+						/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
 							children: [
-								/* @__PURE__ */ jsxDEV("div", {
+								/* @__PURE__ */ jsxs("div", {
 									className: "flex items-center gap-2 text-xs font-semibold text-[var(--ca-text-muted)]",
-									children: [/* @__PURE__ */ jsxDEV(MapPin, { className: "h-4 w-4 text-[var(--ca-accent)]" }, void 0, false, {
-										fileName: _jsxFileName$4,
-										lineNumber: 57,
-										columnNumber: 17
-									}, this), /* @__PURE__ */ jsxDEV("span", { children: t.contact.addressLabel }, void 0, false, {
-										fileName: _jsxFileName$4,
-										lineNumber: 58,
-										columnNumber: 17
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$4,
-									lineNumber: 56,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+									children: [/* @__PURE__ */ jsx(MapPin, { className: "h-4 w-4 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: t.contact.addressLabel })]
+								}),
+								/* @__PURE__ */ jsx("p", {
 									className: "mt-2 text-sm font-medium text-[var(--ca-text)]",
 									children: STORE_CONFIG.brandName
-								}, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 60,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+								}),
+								/* @__PURE__ */ jsxs("p", {
 									className: "mt-1 text-sm text-[var(--ca-text-muted)]",
 									children: [
 										STORE_CONFIG.address.streetAddress,
-										/* @__PURE__ */ jsxDEV("br", {}, void 0, false, {
-											fileName: _jsxFileName$4,
-											lineNumber: 65,
-											columnNumber: 17
-										}, this),
+										/* @__PURE__ */ jsx("br", {}),
 										STORE_CONFIG.address.locality,
 										", ",
 										STORE_CONFIG.address.region,
@@ -8422,76 +5329,32 @@ function ContactPage() {
 										", ",
 										STORE_CONFIG.address.countryName
 									]
-								}, void 0, true, {
-									fileName: _jsxFileName$4,
-									lineNumber: 63,
-									columnNumber: 15
-								}, this)
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 55,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
 							children: [
-								/* @__PURE__ */ jsxDEV("div", {
+								/* @__PURE__ */ jsxs("div", {
 									className: "flex items-center gap-2 text-xs font-semibold text-[var(--ca-text-muted)]",
-									children: [/* @__PURE__ */ jsxDEV(Clock, { className: "h-4 w-4 text-[var(--ca-accent)]" }, void 0, false, {
-										fileName: _jsxFileName$4,
-										lineNumber: 73,
-										columnNumber: 17
-									}, this), /* @__PURE__ */ jsxDEV("span", { children: t.contact.hoursLabel }, void 0, false, {
-										fileName: _jsxFileName$4,
-										lineNumber: 74,
-										columnNumber: 17
-									}, this)]
-								}, void 0, true, {
-									fileName: _jsxFileName$4,
-									lineNumber: 72,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+									children: [/* @__PURE__ */ jsx(Clock, { className: "h-4 w-4 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: t.contact.hoursLabel })]
+								}),
+								/* @__PURE__ */ jsx("p", {
 									className: "mt-2 text-sm font-medium text-[var(--ca-text)]",
 									children: locale === "ur" ? STORE_CONFIG.openingHours.displayUr : STORE_CONFIG.openingHours.displayEn
-								}, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 76,
-									columnNumber: 15
-								}, this),
-								/* @__PURE__ */ jsxDEV("p", {
+								}),
+								/* @__PURE__ */ jsx("p", {
 									className: "mt-1 text-xs text-[var(--ca-text-muted)]",
 									children: STORE_CONFIG.priceRange
-								}, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 81,
-									columnNumber: 15
-								}, this)
+								})
 							]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 71,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
-							children: [/* @__PURE__ */ jsxDEV("div", {
+							children: [/* @__PURE__ */ jsxs("div", {
 								className: "flex items-center gap-2 text-xs font-semibold text-[var(--ca-text-muted)]",
-								children: [/* @__PURE__ */ jsxDEV(Phone, { className: "h-4 w-4 text-[var(--ca-accent)]" }, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 88,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("span", { children: t.contact.phoneLabel }, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 89,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$4,
-								lineNumber: 87,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("a", {
+								children: [/* @__PURE__ */ jsx(Phone, { className: "h-4 w-4 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: t.contact.phoneLabel })]
+							}), /* @__PURE__ */ jsxs("a", {
 								href: `tel:${STORE_CONFIG.phoneDisplay}`,
 								className: "font-mono-nums mt-2 inline-flex min-h-[44px] items-center text-base font-semibold text-[var(--ca-text)] hover:text-[var(--ca-accent)]",
 								children: [
@@ -8500,119 +5363,50 @@ function ContactPage() {
 									STORE_CONFIG.phoneDisplay,
 									")"
 								]
-							}, void 0, true, {
-								fileName: _jsxFileName$4,
-								lineNumber: 91,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 86,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("div", {
+							})]
+						}),
+						/* @__PURE__ */ jsxs("div", {
 							className: "rounded-xl bg-[var(--ca-surface-subtle)] p-5",
-							children: [/* @__PURE__ */ jsxDEV("div", {
+							children: [/* @__PURE__ */ jsxs("div", {
 								className: "flex items-center gap-2 text-xs font-semibold text-[var(--ca-text-muted)]",
-								children: [/* @__PURE__ */ jsxDEV(Mail, { className: "h-4 w-4 text-[var(--ca-accent)]" }, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 101,
-									columnNumber: 17
-								}, this), /* @__PURE__ */ jsxDEV("span", { children: t.contact.emailLabel }, void 0, false, {
-									fileName: _jsxFileName$4,
-									lineNumber: 102,
-									columnNumber: 17
-								}, this)]
-							}, void 0, true, {
-								fileName: _jsxFileName$4,
-								lineNumber: 100,
-								columnNumber: 15
-							}, this), /* @__PURE__ */ jsxDEV("a", {
+								children: [/* @__PURE__ */ jsx(Mail, { className: "h-4 w-4 text-[var(--ca-accent)]" }), /* @__PURE__ */ jsx("span", { children: t.contact.emailLabel })]
+							}), /* @__PURE__ */ jsx("a", {
 								href: `mailto:${STORE_CONFIG.email}`,
 								className: "mt-2 inline-flex min-h-[44px] items-center text-base font-semibold text-[var(--ca-text)] hover:text-[var(--ca-accent)]",
 								children: STORE_CONFIG.email
-							}, void 0, false, {
-								fileName: _jsxFileName$4,
-								lineNumber: 104,
-								columnNumber: 15
-							}, this)]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 99,
-							columnNumber: 13
-						}, this)
+							})]
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$4,
-					lineNumber: 54,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "mt-8 flex flex-wrap gap-3",
 					children: [
-						/* @__PURE__ */ jsxDEV("a", {
+						/* @__PURE__ */ jsxs("a", {
 							href: STORE_CONFIG.whatsappUrl,
 							target: "_blank",
 							rel: "noopener noreferrer",
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
-							children: [/* @__PURE__ */ jsxDEV(MessageCircle, { className: "h-4 w-4" }, void 0, false, {
-								fileName: _jsxFileName$4,
-								lineNumber: 120,
-								columnNumber: 15
-							}, this), t.contact.whatsappCta]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 114,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV("a", {
+							children: [/* @__PURE__ */ jsx(MessageCircle, { className: "h-4 w-4" }), t.contact.whatsappCta]
+						}),
+						/* @__PURE__ */ jsxs("a", {
 							href: STORE_CONFIG.mapUrl,
 							target: "_blank",
 							rel: "noopener noreferrer",
 							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-text)]",
-							children: [/* @__PURE__ */ jsxDEV(MapPin, { className: "h-4 w-4 text-[var(--ca-accent)]" }, void 0, false, {
-								fileName: _jsxFileName$4,
-								lineNumber: 129,
-								columnNumber: 15
-							}, this), t.contact.mapCta]
-						}, void 0, true, {
-							fileName: _jsxFileName$4,
-							lineNumber: 123,
-							columnNumber: 13
-						}, this),
-						/* @__PURE__ */ jsxDEV(Link, {
+							children: [/* @__PURE__ */ jsx(MapPin, { className: "h-4 w-4 text-[var(--ca-accent)]" }), t.contact.mapCta]
+						}),
+						/* @__PURE__ */ jsx(Link, {
 							to: localize("/faq"),
 							className: "btn-press inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-text)]",
 							children: t.contact.faqLinkLabel
-						}, void 0, false, {
-							fileName: _jsxFileName$4,
-							lineNumber: 132,
-							columnNumber: 13
-						}, this)
+						})
 					]
-				}, void 0, true, {
-					fileName: _jsxFileName$4,
-					lineNumber: 113,
-					columnNumber: 11
-				}, this)
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$4,
-			lineNumber: 46,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$4,
-		lineNumber: 38,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$4,
-		lineNumber: 16,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/LegalPages.tsx
-var _jsxFileName$3 = "/app/applet/src/pages/LegalPages.tsx";
 function TermsPage() {
 	const { t, locale, localize } = useLocale();
 	const [doc, setDoc] = useState(DEFAULT_TERMS_POLICY);
@@ -8632,403 +5426,454 @@ function TermsPage() {
 	useEffect(() => {
 		loadTerms();
 	}, [loadTerms]);
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `شرائط و اقساط پالیسی — ${t.brand}` : "Terms & Installment Policy — Cinematic Arts (CA)",
 		description: "Read Cinematic Arts terms of service, 7-day exchanges, PKR installment financing rules, and 10% seller referral commission.",
 		canonicalPath: localize("/terms"),
 		locale
-	}, void 0, false, {
-		fileName: _jsxFileName$3,
-		lineNumber: 34,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("article", {
+	}), /* @__PURE__ */ jsxs("article", {
 		className: "mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.terms }] }, void 0, false, {
-			fileName: _jsxFileName$3,
-			lineNumber: 45,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.terms }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-7 sm:p-10 space-y-6",
-			children: [/* @__PURE__ */ jsxDEV("header", {
+			children: [/* @__PURE__ */ jsxs("header", {
 				className: "pb-2",
-				children: [/* @__PURE__ */ jsxDEV("p", {
+				children: [/* @__PURE__ */ jsx("p", {
 					className: "text-xs text-[var(--ca-text-muted)]",
 					children: doc.effectiveLabel
-				}, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 53,
-					columnNumber: 13
-				}, this), /* @__PURE__ */ jsxDEV("h1", {
+				}), /* @__PURE__ */ jsx("h1", {
 					className: "font-display mt-2 text-4xl font-semibold text-[var(--ca-text)]",
 					children: locale === "ur" ? t.nav.terms : doc.title
-				}, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 56,
-					columnNumber: 13
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 52,
-				columnNumber: 11
-			}, this), loading ? /* @__PURE__ */ jsxDEV("div", {
+				})]
+			}), loading ? /* @__PURE__ */ jsxs("div", {
 				className: "space-y-4",
 				children: [
-					/* @__PURE__ */ jsxDEV("div", { className: "h-6 w-1/2 animate-pulse rounded-lg bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 63,
-						columnNumber: 15
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", { className: "h-20 w-full animate-pulse rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 64,
-						columnNumber: 15
-					}, this),
-					/* @__PURE__ */ jsxDEV("div", { className: "h-20 w-full animate-pulse rounded-xl bg-[var(--ca-surface-subtle)]" }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 65,
-						columnNumber: 15
-					}, this)
+					/* @__PURE__ */ jsx("div", { className: "h-6 w-1/2 animate-pulse rounded-lg bg-[var(--ca-surface-subtle)]" }),
+					/* @__PURE__ */ jsx("div", { className: "h-20 w-full animate-pulse rounded-xl bg-[var(--ca-surface-subtle)]" }),
+					/* @__PURE__ */ jsx("div", { className: "h-20 w-full animate-pulse rounded-xl bg-[var(--ca-surface-subtle)]" })
 				]
-			}, void 0, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 62,
-				columnNumber: 13
-			}, this) : error ? /* @__PURE__ */ jsxDEV("div", {
+			}) : error ? /* @__PURE__ */ jsxs("div", {
 				className: "rounded-2xl border border-red-500/25 bg-red-500/10 p-5 text-sm text-red-700 dark:text-red-300",
-				children: [/* @__PURE__ */ jsxDEV("p", { children: error }, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 69,
-					columnNumber: 15
-				}, this), /* @__PURE__ */ jsxDEV("button", {
+				children: [/* @__PURE__ */ jsx("p", { children: error }), /* @__PURE__ */ jsxs("button", {
 					type: "button",
 					onClick: loadTerms,
 					className: "mt-3 inline-flex items-center gap-1.5 rounded-xl border border-current px-3.5 py-1.5 text-xs font-semibold",
-					children: [/* @__PURE__ */ jsxDEV(RefreshCw, { className: "h-3.5 w-3.5" }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 75,
-						columnNumber: 17
-					}, this), "Retry"]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 70,
-					columnNumber: 15
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 68,
-				columnNumber: 13
-			}, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [doc.sections.map((section) => /* @__PURE__ */ jsxDEV("section", {
+					children: [/* @__PURE__ */ jsx(RefreshCw, { className: "h-3.5 w-3.5" }), "Retry"]
+				})]
+			}) : /* @__PURE__ */ jsxs(Fragment, { children: [doc.sections.map((section) => /* @__PURE__ */ jsxs("section", {
 				className: "space-y-2 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-				children: [/* @__PURE__ */ jsxDEV("h2", {
+				children: [/* @__PURE__ */ jsx("h2", {
 					className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 					children: section.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 86,
-					columnNumber: 19
-				}, this), /* @__PURE__ */ jsxDEV("p", {
+				}), /* @__PURE__ */ jsx("p", {
 					className: "whitespace-pre-line",
 					children: section.body
-				}, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 89,
-					columnNumber: 19
-				}, this)]
-			}, section.id, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 82,
-				columnNumber: 17
-			}, this)), /* @__PURE__ */ jsxDEV("footer", {
+				})]
+			}, section.id)), /* @__PURE__ */ jsxs("footer", {
 				className: "pt-4 text-xs text-[var(--ca-text-muted)] flex flex-wrap items-center justify-between gap-2",
-				children: [/* @__PURE__ */ jsxDEV("span", { children: doc.footerNote || "Questions? Email masihsam587@gmail.com or call 03355329722." }, void 0, false, {
-					fileName: _jsxFileName$3,
-					lineNumber: 94,
-					columnNumber: 17
-				}, this), /* @__PURE__ */ jsxDEV("span", {
+				children: [/* @__PURE__ */ jsx("span", { children: doc.footerNote || "Questions? Email masihsam587@gmail.com or call 03355329722." }), /* @__PURE__ */ jsxs("span", {
 					className: "font-mono-nums",
 					children: ["Updated ", doc.updatedAt.slice(0, 10)]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 98,
-					columnNumber: 17
-				}, this)]
-			}, void 0, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 93,
-				columnNumber: 15
-			}, this)] }, void 0, true, {
-				fileName: _jsxFileName$3,
-				lineNumber: 80,
-				columnNumber: 13
-			}, this)]
-		}, void 0, true, {
-			fileName: _jsxFileName$3,
-			lineNumber: 51,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$3,
-		lineNumber: 44,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$3,
-		lineNumber: 33,
-		columnNumber: 5
-	}, this);
+				})]
+			})] })]
+		})]
+	})] });
 }
 function PrivacyPage() {
 	const { t, locale, localize } = useLocale();
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: locale === "ur" ? `پرائیویسی پالیسی — ${t.brand}` : "Privacy Policy & Data Usage — Cinematic Arts (CA)",
 		description: "How Cinematic Arts handles customer delivery details, seller verification records, and account deletion rights.",
 		canonicalPath: localize("/privacy"),
 		locale
-	}, void 0, false, {
-		fileName: _jsxFileName$3,
-		lineNumber: 114,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("article", {
+	}), /* @__PURE__ */ jsxs("article", {
 		className: "mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12",
-		children: [/* @__PURE__ */ jsxDEV(Breadcrumbs, { items: [{
+		children: [/* @__PURE__ */ jsx(Breadcrumbs, { items: [{
 			label: t.nav.home,
 			to: localize("/")
-		}, { label: t.nav.privacy }] }, void 0, false, {
-			fileName: _jsxFileName$3,
-			lineNumber: 125,
-			columnNumber: 9
-		}, this), /* @__PURE__ */ jsxDEV("div", {
+		}, { label: t.nav.privacy }] }), /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-7 sm:p-10 space-y-6",
 			children: [
-				/* @__PURE__ */ jsxDEV("header", {
+				/* @__PURE__ */ jsxs("header", {
 					className: "pb-2",
-					children: [/* @__PURE__ */ jsxDEV("p", {
+					children: [/* @__PURE__ */ jsxs("p", {
 						className: "text-xs text-[var(--ca-text-muted)]",
 						children: [
 							t.brandFull,
 							" · ",
 							t.locationShort
 						]
-					}, void 0, true, {
-						fileName: _jsxFileName$3,
-						lineNumber: 133,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("h1", {
+					}), /* @__PURE__ */ jsx("h1", {
 						className: "font-display mt-2 text-4xl font-semibold text-[var(--ca-text)]",
 						children: t.nav.privacy
-					}, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 136,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 132,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", {
+					})]
+				}),
+				/* @__PURE__ */ jsxs("section", {
 					className: "space-y-2 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-					children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: "1. Information We Collect"
-					}, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 142,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("p", { children: "We collect only the contact and delivery fields required to fulfill your order: full name, mobile number, WhatsApp contact, street address, city, and postal code. Seller applicants additionally provide father's name and profile identification for installment referral verification." }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 145,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 141,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", {
+					}), /* @__PURE__ */ jsx("p", { children: "We collect only the contact and delivery fields required to fulfill your order: full name, mobile number, WhatsApp contact, street address, city, and postal code. Seller applicants additionally provide father's name and profile identification for installment referral verification." })]
+				}),
+				/* @__PURE__ */ jsxs("section", {
 					className: "space-y-2 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-					children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: "2. How Your Data Is Used"
-					}, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 154,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("p", { children: "Your contact details are used exclusively for order dispatch, WhatsApp delivery coordination, installment recovery tracking, and customer support replies. We never sell or rent customer records to third-party advertisers." }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 157,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 153,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("section", {
+					}), /* @__PURE__ */ jsx("p", { children: "Your contact details are used exclusively for order dispatch, WhatsApp delivery coordination, installment recovery tracking, and customer support replies. We never sell or rent customer records to third-party advertisers." })]
+				}),
+				/* @__PURE__ */ jsxs("section", {
 					className: "space-y-2 text-sm leading-relaxed text-[var(--ca-text-muted)]",
-					children: [/* @__PURE__ */ jsxDEV("h2", {
+					children: [/* @__PURE__ */ jsx("h2", {
 						className: "font-display text-2xl font-semibold text-[var(--ca-text)]",
 						children: "3. Account Deletion & Security"
-					}, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 165,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV("p", { children: "Customers may edit their personal delivery details or permanently delete their account at any time from the Profile screen. Passwords and administrative credentials are verified exclusively on the server using salted cryptographic hashing." }, void 0, false, {
-						fileName: _jsxFileName$3,
-						lineNumber: 168,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$3,
-					lineNumber: 164,
-					columnNumber: 11
-				}, this)
+					}), /* @__PURE__ */ jsx("p", { children: "Customers may edit their personal delivery details or permanently delete their account at any time from the Profile screen. Passwords and administrative credentials are verified exclusively on the server using salted cryptographic hashing." })]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$3,
-			lineNumber: 131,
-			columnNumber: 9
-		}, this)]
-	}, void 0, true, {
-		fileName: _jsxFileName$3,
-		lineNumber: 124,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$3,
-		lineNumber: 113,
-		columnNumber: 5
-	}, this);
+		})]
+	})] });
 }
 // src/pages/NotFoundPage.tsx
-var _jsxFileName$2 = "/app/applet/src/pages/NotFoundPage.tsx";
 function NotFoundPage() {
 	const { t, locale, isRtl, localize } = useLocale();
 	const ArrowIcon = isRtl ? ArrowRight : ArrowLeft;
-	return /* @__PURE__ */ jsxDEV(Fragment, { children: [/* @__PURE__ */ jsxDEV(SeoHead, {
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
 		title: `404 Page Not Found — ${t.brand}`,
 		description: "The requested page could not be found on Cinematic Arts (CA).",
 		locale,
 		noIndex: true
-	}, void 0, false, {
-		fileName: _jsxFileName$2,
-		lineNumber: 12,
-		columnNumber: 7
-	}, this), /* @__PURE__ */ jsxDEV("section", {
+	}), /* @__PURE__ */ jsx("section", {
 		className: "mx-auto max-w-xl px-4 py-24 text-center",
-		children: /* @__PURE__ */ jsxDEV("div", {
+		children: /* @__PURE__ */ jsxs("div", {
 			className: "glass-panel rounded-2xl p-10",
 			children: [
-				/* @__PURE__ */ jsxDEV("p", {
+				/* @__PURE__ */ jsx("p", {
 					className: "font-mono-nums text-xs font-medium text-[var(--ca-accent)]",
 					children: t.notFound.code
-				}, void 0, false, {
-					fileName: _jsxFileName$2,
-					lineNumber: 20,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("h1", {
+				}),
+				/* @__PURE__ */ jsx("h1", {
 					className: "font-display mt-3 text-4xl font-semibold text-[var(--ca-text)]",
 					children: t.notFound.heading
-				}, void 0, false, {
-					fileName: _jsxFileName$2,
-					lineNumber: 23,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("p", {
+				}),
+				/* @__PURE__ */ jsx("p", {
 					className: "mt-3 text-sm leading-relaxed text-[var(--ca-text-muted)]",
 					children: t.notFound.body
-				}, void 0, false, {
-					fileName: _jsxFileName$2,
-					lineNumber: 26,
-					columnNumber: 11
-				}, this),
-				/* @__PURE__ */ jsxDEV("div", {
+				}),
+				/* @__PURE__ */ jsxs("div", {
 					className: "mt-7 flex flex-wrap justify-center gap-3",
-					children: [/* @__PURE__ */ jsxDEV(Link, {
+					children: [/* @__PURE__ */ jsxs(Link, {
 						to: localize("/"),
 						className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]",
-						children: [/* @__PURE__ */ jsxDEV(ArrowIcon, { className: "h-3.5 w-3.5" }, void 0, false, {
-							fileName: _jsxFileName$2,
-							lineNumber: 34,
-							columnNumber: 15
-						}, this), t.notFound.backHome]
-					}, void 0, true, {
-						fileName: _jsxFileName$2,
-						lineNumber: 30,
-						columnNumber: 13
-					}, this), /* @__PURE__ */ jsxDEV(Link, {
+						children: [/* @__PURE__ */ jsx(ArrowIcon, { className: "h-3.5 w-3.5" }), t.notFound.backHome]
+					}), /* @__PURE__ */ jsx(Link, {
 						to: localize("/shop"),
 						className: "inline-flex min-h-[44px] items-center rounded-xl border border-[var(--ca-border)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
 						children: t.nav.browseShop
-					}, void 0, false, {
-						fileName: _jsxFileName$2,
-						lineNumber: 37,
-						columnNumber: 13
-					}, this)]
-				}, void 0, true, {
-					fileName: _jsxFileName$2,
-					lineNumber: 29,
-					columnNumber: 11
-				}, this)
+					})]
+				})
 			]
-		}, void 0, true, {
-			fileName: _jsxFileName$2,
-			lineNumber: 19,
-			columnNumber: 9
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName$2,
-		lineNumber: 18,
-		columnNumber: 7
-	}, this)] }, void 0, true, {
-		fileName: _jsxFileName$2,
-		lineNumber: 11,
-		columnNumber: 5
-	}, this);
+		})
+	})] });
+}
+// src/pages/OrderConfirmationPage.tsx
+function OrderConfirmationPage() {
+	const location = useLocation();
+	const [searchParams] = useSearchParams();
+	const { user } = useAuth();
+	const { showToast } = useToast();
+	const { localize } = useLocale();
+	const routeOrder = location.state?.order || null;
+	const orderIdParam = searchParams.get("id") || routeOrder?.id || "";
+	const [order, setOrder] = useState(() => {
+		if (routeOrder) return routeOrder;
+		return orderIdParam ? getOrderReceipt(orderIdParam) : null;
+	});
+	const [loading, setLoading] = useState(!order && Boolean(orderIdParam && user));
+	const [copied, setCopied] = useState(false);
+	useEffect(() => {
+		if (order || !orderIdParam || !user) {
+			setLoading(false);
+			return;
+		}
+		let active = true;
+		setLoading(true);
+		orderService.listMyOrders().then((list) => {
+			if (!active) return;
+			const found = list.find((o) => o.id === orderIdParam) || null;
+			setOrder(found);
+		}).catch(() => {}).finally(() => {
+			if (active) setLoading(false);
+		});
+		return () => {
+			active = false;
+		};
+	}, [
+		order,
+		orderIdParam,
+		user
+	]);
+	const handleCopyId = async () => {
+		const idToCopy = order?.id || orderIdParam;
+		if (!idToCopy) return;
+		try {
+			await navigator.clipboard.writeText(idToCopy);
+			setCopied(true);
+			showToast(`Copied Order ID ${idToCopy}`, "success");
+			window.setTimeout(() => setCopied(false), 1800);
+		} catch {
+			showToast(`Order ID: ${idToCopy}`, "info");
+		}
+	};
+	const displayOrderId = order?.id || orderIdParam;
+	const whatsappText = encodeURIComponent(displayOrderId ? `Salam Cinematic Arts, checking on my Order ID ${displayOrderId}.` : "Salam Cinematic Arts, I need help with my recent order.");
+	const whatsappHref = `${STORE_CONFIG.whatsappUrl}?text=${whatsappText}`;
+	return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(SeoHead, {
+		title: "Order Confirmed — Cinematic Arts (CA)",
+		description: "Your Cinematic Arts order confirmation and reference ID.",
+		canonicalPath: "/order-confirmed",
+		noIndex: true
+	}), /* @__PURE__ */ jsx("section", {
+		"data-testid": "order-confirmation-screen",
+		className: "ca-fade-in mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-16",
+		children: loading ? /* @__PURE__ */ jsx("div", {
+			className: "glass-panel flex min-h-[280px] items-center justify-center rounded-2xl p-8",
+			children: /* @__PURE__ */ jsx(CALoader, {
+				size: "md",
+				label: "Loading order confirmation..."
+			})
+		}) : !displayOrderId ? /* @__PURE__ */ jsxs("div", {
+			className: "glass-panel rounded-2xl p-8 text-center",
+			children: [
+				/* @__PURE__ */ jsx("h1", {
+					className: "font-display text-3xl font-semibold text-[var(--ca-text)]",
+					children: "No Recent Order Found"
+				}),
+				/* @__PURE__ */ jsx("p", {
+					className: "mt-2 text-sm text-[var(--ca-text-muted)]",
+					children: "Check your order tracker for live status or continue browsing the catalog."
+				}),
+				/* @__PURE__ */ jsxs("div", {
+					className: "mt-6 flex flex-wrap justify-center gap-3",
+					children: [/* @__PURE__ */ jsxs(Link, {
+						to: "/orders",
+						className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]",
+						children: [/* @__PURE__ */ jsx(PackageCheck, { className: "h-4 w-4" }), "View My Orders"]
+					}), /* @__PURE__ */ jsx(Link, {
+						to: localize("/shop"),
+						className: "inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--ca-border)] px-5 py-2.5 text-sm font-medium text-[var(--ca-text)]",
+						children: "Continue Shopping"
+					})]
+				})
+			]
+		}) : /* @__PURE__ */ jsxs("div", {
+			className: "glass-panel rounded-2xl p-6 sm:p-8",
+			children: [
+				/* @__PURE__ */ jsxs("div", {
+					className: "text-center",
+					children: [
+						/* @__PURE__ */ jsx("div", {
+							className: "mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+							children: /* @__PURE__ */ jsx(CheckCircle2, { className: "h-7 w-7" })
+						}),
+						/* @__PURE__ */ jsx("p", {
+							className: "mt-4 text-xs font-medium text-emerald-700 dark:text-emerald-300",
+							children: "Order Submitted Successfully"
+						}),
+						/* @__PURE__ */ jsx("h1", {
+							className: "font-display mt-1 text-3xl font-semibold text-[var(--ca-text)] sm:text-4xl",
+							children: "Thank you for your order"
+						}),
+						/* @__PURE__ */ jsxs("p", {
+							className: "mt-2 text-sm text-[var(--ca-text-muted)]",
+							children: [
+								"Our Peshawar team has received your order and marked it ",
+								/* @__PURE__ */ jsx("strong", { children: "Pending" }),
+								" verification."
+							]
+						})
+					]
+				}),
+				/* @__PURE__ */ jsxs("div", {
+					className: "mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--ca-surface-subtle)] p-4 sm:p-5",
+					children: [/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("span", {
+						className: "block text-xs text-[var(--ca-text-muted)]",
+						children: "Order Reference ID"
+					}), /* @__PURE__ */ jsx("p", {
+						"data-testid": "confirmed-order-id",
+						className: "font-mono-nums mt-0.5 text-xl font-bold text-[var(--ca-text)] sm:text-2xl",
+						children: displayOrderId
+					})] }), /* @__PURE__ */ jsxs("button", {
+						type: "button",
+						onClick: handleCopyId,
+						className: "btn-press inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[var(--ca-surface-solid)] px-4 py-2 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85",
+						children: [copied ? /* @__PURE__ */ jsx(Check, { className: "h-3.5 w-3.5 text-emerald-600" }) : /* @__PURE__ */ jsx(Copy, { className: "h-3.5 w-3.5" }), copied ? "Copied" : "Copy Order ID"]
+					})]
+				}),
+				order && /* @__PURE__ */ jsxs("div", {
+					className: "mt-6 space-y-5",
+					children: [
+						/* @__PURE__ */ jsxs("div", {
+							className: "grid grid-cols-2 gap-3 text-xs sm:grid-cols-3",
+							children: [
+								/* @__PURE__ */ jsxs("div", {
+									className: "rounded-xl bg-[var(--ca-surface-subtle)]/70 p-3",
+									children: [/* @__PURE__ */ jsx("span", {
+										className: "block text-[var(--ca-text-muted)]",
+										children: "Status"
+									}), /* @__PURE__ */ jsxs("span", {
+										className: "mt-1 inline-flex items-center gap-1 font-semibold capitalize text-[var(--ca-accent)]",
+										children: [/* @__PURE__ */ jsx(Clock, { className: "h-3.5 w-3.5" }), order.status]
+									})]
+								}),
+								/* @__PURE__ */ jsxs("div", {
+									className: "rounded-xl bg-[var(--ca-surface-subtle)]/70 p-3",
+									children: [/* @__PURE__ */ jsx("span", {
+										className: "block text-[var(--ca-text-muted)]",
+										children: "Payment"
+									}), /* @__PURE__ */ jsx("span", {
+										className: "mt-1 block font-semibold text-[var(--ca-text)]",
+										children: order.paymentMethod === "installments" ? `Installments (${order.planLabel || "Plan"})` : "Cash on Delivery"
+									})]
+								}),
+								/* @__PURE__ */ jsxs("div", {
+									className: "col-span-2 rounded-xl bg-[var(--ca-surface-subtle)]/70 p-3 sm:col-span-1",
+									children: [/* @__PURE__ */ jsx("span", {
+										className: "block text-[var(--ca-text-muted)]",
+										children: "Total Payable"
+									}), /* @__PURE__ */ jsx("span", {
+										className: "font-mono-nums mt-1 block font-bold text-[var(--ca-text)]",
+										children: formatPKR(order.totalAmount)
+									})]
+								})
+							]
+						}),
+						order.paymentMethod === "installments" && /* @__PURE__ */ jsxs("div", {
+							className: "rounded-xl border border-[var(--ca-border)] p-4 text-xs",
+							children: [/* @__PURE__ */ jsxs("div", {
+								className: "flex flex-wrap items-center justify-between gap-2",
+								children: [/* @__PURE__ */ jsx("span", {
+									className: "font-semibold text-[var(--ca-text)]",
+									children: "Installment Breakdown"
+								}), order.referralCode && /* @__PURE__ */ jsxs("span", {
+									className: "font-mono-nums text-[var(--ca-text-muted)]",
+									children: ["Seller Ref: ", /* @__PURE__ */ jsx("strong", {
+										className: "text-[var(--ca-text)]",
+										children: order.referralCode
+									})]
+								})]
+							}), /* @__PURE__ */ jsxs("p", {
+								className: "mt-1.5 text-[var(--ca-text-muted)]",
+								children: [
+									order.advanceAmount > 0 ? `Advance: ${formatPKR(order.advanceAmount)} · ` : "",
+									"Monthly: ",
+									/* @__PURE__ */ jsxs("strong", {
+										className: "font-mono-nums text-[var(--ca-text)]",
+										children: [formatPKR(order.monthlyAmount), " / mo"]
+									})
+								]
+							})]
+						}),
+						/* @__PURE__ */ jsxs("div", { children: [/* @__PURE__ */ jsx("h2", {
+							className: "text-xs font-semibold text-[var(--ca-text-muted)]",
+							children: "Items Ordered"
+						}), /* @__PURE__ */ jsx("ul", {
+							className: "mt-2 space-y-2 text-sm",
+							children: order.items.map((item, idx) => /* @__PURE__ */ jsxs("li", {
+								className: "flex items-center justify-between gap-3 rounded-xl bg-[var(--ca-surface-subtle)]/50 px-3.5 py-2.5",
+								children: [/* @__PURE__ */ jsxs("span", {
+									className: "text-[var(--ca-text)]",
+									children: [
+										item.title,
+										" × ",
+										item.quantity,
+										" ",
+										item.selectedSize ? /* @__PURE__ */ jsxs("span", {
+											className: "text-xs text-[var(--ca-text-muted)]",
+											children: [
+												"(",
+												item.selectedSize,
+												")"
+											]
+										}) : null
+									]
+								}), /* @__PURE__ */ jsx("span", {
+									className: "font-mono-nums text-xs font-semibold text-[var(--ca-text)]",
+									children: formatPKR(item.unitPrice * item.quantity)
+								})]
+							}, idx))
+						})] }),
+						/* @__PURE__ */ jsxs("p", {
+							className: "text-xs text-[var(--ca-text-muted)]",
+							children: [
+								"Delivering to ",
+								/* @__PURE__ */ jsx("strong", {
+									className: "text-[var(--ca-text)]",
+									children: order.customerName
+								}),
+								" in",
+								" ",
+								/* @__PURE__ */ jsx("strong", {
+									className: "text-[var(--ca-text)]",
+									children: order.city
+								}),
+								"."
+							]
+						})
+					]
+				}),
+				/* @__PURE__ */ jsxs("div", {
+					className: "mt-7 flex flex-wrap items-center justify-center gap-3",
+					children: [
+						/* @__PURE__ */ jsxs(Link, {
+							to: "/orders",
+							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90",
+							children: [/* @__PURE__ */ jsx(PackageCheck, { className: "h-4 w-4" }), "Track in My Orders"]
+						}),
+						/* @__PURE__ */ jsxs(Link, {
+							to: localize("/shop"),
+							className: "btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--ca-border)] px-5 py-2.5 text-sm font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]",
+							children: [/* @__PURE__ */ jsx(ShoppingBag, { className: "h-4 w-4" }), "Continue Shopping"]
+						}),
+						/* @__PURE__ */ jsxs("a", {
+							href: whatsappHref,
+							target: "_blank",
+							rel: "noopener noreferrer",
+							className: "inline-flex min-h-[44px] items-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--ca-accent)] hover:underline",
+							children: [/* @__PURE__ */ jsx(MessageCircle, { className: "h-3.5 w-3.5" }), "WhatsApp Support"]
+						})
+					]
+				})
+			]
+		})
+	})] });
 }
 // src/App.tsx
 /**
 * @license
 * SPDX-License-Identifier: Apache-2.0
 */
-var _jsxFileName$1 = "/app/applet/src/App.tsx";
-var OrdersPage = lazy(() => import("./assets/OrdersPage-LH2lIlVy.js").then((m) => ({ default: m.OrdersPage })));
-var ProfilePage = lazy(() => import("./assets/ProfilePage-DKrZm3bZ.js").then((m) => ({ default: m.ProfilePage })));
-var AuthPage = lazy(() => import("./assets/AuthPage-DF4RiyEB.js").then((m) => ({ default: m.AuthPage })));
-var AdminPage = lazy(() => import("./assets/AdminPage-CMqWiOAr.js").then((m) => ({ default: m.AdminPage })));
-var AdminModal = lazy(() => import("./assets/AdminModal-DcilNRBp.js").then((m) => ({ default: m.AdminModal })));
+var OrdersPage = lazy(() => import("./assets/OrdersPage-BO5dTHsW.js").then((m) => ({ default: m.OrdersPage })));
+var ProfilePage = lazy(() => import("./assets/ProfilePage-BuvKIOge.js").then((m) => ({ default: m.ProfilePage })));
+var AuthPage = lazy(() => import("./assets/AuthPage-JgjEL5QD.js").then((m) => ({ default: m.AuthPage })));
+var AdminPage = lazy(() => import("./assets/AdminPage-Z-Iem6EL.js").then((m) => ({ default: m.AdminPage })));
+var AdminModal = lazy(() => import("./assets/AdminModal-DoDOAoYs.js").then((m) => ({ default: m.AdminModal })));
+var StatusPage = lazy(() => import("./assets/StatusPage-CqxfACPV.js").then((m) => ({ default: m.StatusPage })));
 function PrivateRouteFallback() {
-	return /* @__PURE__ */ jsxDEV("div", {
+	return /* @__PURE__ */ jsx("div", {
 		className: "flex min-h-[60vh] items-center justify-center px-4",
-		children: /* @__PURE__ */ jsxDEV(CALoader, {
+		children: /* @__PURE__ */ jsx(CALoader, {
 			size: "lg",
 			label: "Loading view..."
-		}, void 0, false, {
-			fileName: _jsxFileName$1,
-			lineNumber: 54,
-			columnNumber: 7
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName$1,
-		lineNumber: 53,
-		columnNumber: 5
-	}, this);
+		})
+	});
 }
 function PrivateShell({ children }) {
-	return /* @__PURE__ */ jsxDEV(Suspense, {
-		fallback: /* @__PURE__ */ jsxDEV(PrivateRouteFallback, {}, void 0, false, {
-			fileName: _jsxFileName$1,
-			lineNumber: 60,
-			columnNumber: 30
-		}, this),
+	return /* @__PURE__ */ jsx(Suspense, {
+		fallback: /* @__PURE__ */ jsx(PrivateRouteFallback, {}),
 		children
-	}, void 0, false, {
-		fileName: _jsxFileName$1,
-		lineNumber: 60,
-		columnNumber: 10
-	}, this);
+	});
 }
 function ScrollToTop() {
 	const { pathname } = useLocation();
@@ -9071,348 +5916,119 @@ function AppShell({ queryClient: queryClient$1 = queryClient }) {
 	}, []);
 	const renderStoreRoutes = (prefix) => {
 		const p = (sub) => prefix ? `${prefix}${sub === "/" ? "" : sub}` : sub;
-		return /* @__PURE__ */ jsxDEV(Fragment, { children: [
-			/* @__PURE__ */ jsxDEV(Route, {
+		return /* @__PURE__ */ jsxs(Fragment, { children: [
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/"),
-				element: /* @__PURE__ */ jsxDEV(HomePage, { onNetworkError: setNetworkError }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 129,
-					columnNumber: 39
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 129,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(HomePage, { onNetworkError: setNetworkError })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/shop"),
-				element: /* @__PURE__ */ jsxDEV(ShopPage, { onNetworkError: setNetworkError }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 130,
-					columnNumber: 43
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 130,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(ShopPage, { onNetworkError: setNetworkError })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/category/:slug"),
-				element: /* @__PURE__ */ jsxDEV(CategoryPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 131,
-					columnNumber: 53
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 131,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(CategoryPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/product/:slug"),
-				element: /* @__PURE__ */ jsxDEV(ProductDetailPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 132,
-					columnNumber: 52
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 132,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(ProductDetailPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/about"),
-				element: /* @__PURE__ */ jsxDEV(AboutPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 133,
-					columnNumber: 44
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 133,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(AboutPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/faq"),
-				element: /* @__PURE__ */ jsxDEV(FaqPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 134,
-					columnNumber: 42
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 134,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(FaqPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/size-guide"),
-				element: /* @__PURE__ */ jsxDEV(SizeGuidePage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 135,
-					columnNumber: 49
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 135,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(SizeGuidePage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/shipping"),
-				element: /* @__PURE__ */ jsxDEV(ShippingPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 136,
-					columnNumber: 47
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 136,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(ShippingPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/contact"),
-				element: /* @__PURE__ */ jsxDEV(ContactPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 137,
-					columnNumber: 46
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 137,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(ContactPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/terms"),
-				element: /* @__PURE__ */ jsxDEV(TermsPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 138,
-					columnNumber: 44
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 138,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(TermsPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/privacy"),
-				element: /* @__PURE__ */ jsxDEV(PrivacyPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 139,
-					columnNumber: 46
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 139,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivacyPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/orders"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(OrdersPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 140,
-					columnNumber: 59
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 140,
-					columnNumber: 45
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 140,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(OrdersPage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/cart"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(OrdersPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 141,
-					columnNumber: 57
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 141,
-					columnNumber: 43
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 141,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(OrdersPage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/checkout"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(OrdersPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 142,
-					columnNumber: 61
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 142,
-					columnNumber: 47
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 142,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(OrdersPage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
+				path: p("/order-confirmed"),
+				element: /* @__PURE__ */ jsx(OrderConfirmationPage, {})
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/profile"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(ProfilePage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 143,
-					columnNumber: 60
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 143,
-					columnNumber: 46
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 143,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(ProfilePage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/auth"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(AuthPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 144,
-					columnNumber: 57
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 144,
-					columnNumber: 43
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 144,
-				columnNumber: 9
-			}, this),
-			/* @__PURE__ */ jsxDEV(Route, {
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(AuthPage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
 				path: p("/admin"),
-				element: /* @__PURE__ */ jsxDEV(PrivateShell, { children: /* @__PURE__ */ jsxDEV(AdminPage, {}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 145,
-					columnNumber: 58
-				}, this) }, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 145,
-					columnNumber: 44
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 145,
-				columnNumber: 9
-			}, this)
-		] }, void 0, true, {
-			fileName: _jsxFileName$1,
-			lineNumber: 128,
-			columnNumber: 7
-		}, this);
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(AdminPage, {}) })
+			}),
+			/* @__PURE__ */ jsx(Route, {
+				path: p("/status"),
+				element: /* @__PURE__ */ jsx(PrivateShell, { children: /* @__PURE__ */ jsx(StatusPage, {}) })
+			})
+		] });
 	};
-	return /* @__PURE__ */ jsxDEV(ErrorBoundary, { children: /* @__PURE__ */ jsxDEV(QueryClientProvider, {
+	return /* @__PURE__ */ jsx(ErrorBoundary, { children: /* @__PURE__ */ jsx(QueryClientProvider, {
 		client: queryClient$1,
-		children: /* @__PURE__ */ jsxDEV(ThemeProvider, { children: /* @__PURE__ */ jsxDEV(ToastProvider, { children: /* @__PURE__ */ jsxDEV(AuthProvider, { children: /* @__PURE__ */ jsxDEV(CartProvider, { children: [
-			/* @__PURE__ */ jsxDEV(RouteSeoManager, {}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 157,
-				columnNumber: 17
-			}, this),
-			/* @__PURE__ */ jsxDEV(ScrollToTop, {}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 158,
-				columnNumber: 17
-			}, this),
-			/* @__PURE__ */ jsxDEV(IntroSplash, {}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 159,
-				columnNumber: 17
-			}, this),
-			/* @__PURE__ */ jsxDEV(Layout, {
+		children: /* @__PURE__ */ jsx(ThemeProvider, { children: /* @__PURE__ */ jsx(ToastProvider, { children: /* @__PURE__ */ jsx(AuthProvider, { children: /* @__PURE__ */ jsxs(CartProvider, { children: [
+			/* @__PURE__ */ jsx(RouteSeoManager, {}),
+			/* @__PURE__ */ jsx(ScrollToTop, {}),
+			/* @__PURE__ */ jsx(IntroSplash, {}),
+			/* @__PURE__ */ jsx(Layout, {
 				networkError,
 				onRetry: () => window.location.reload(),
-				children: /* @__PURE__ */ jsxDEV(Routes, { children: [
+				children: /* @__PURE__ */ jsxs(Routes, { children: [
 					renderStoreRoutes(""),
 					renderStoreRoutes("/ur"),
-					/* @__PURE__ */ jsxDEV(Route, {
+					/* @__PURE__ */ jsx(Route, {
 						path: "/ur/*",
-						element: /* @__PURE__ */ jsxDEV(NotFoundPage, {}, void 0, false, {
-							fileName: _jsxFileName$1,
-							lineNumber: 167,
-							columnNumber: 50
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$1,
-						lineNumber: 167,
-						columnNumber: 21
-					}, this),
-					/* @__PURE__ */ jsxDEV(Route, {
+						element: /* @__PURE__ */ jsx(NotFoundPage, {})
+					}),
+					/* @__PURE__ */ jsx(Route, {
 						path: "*",
-						element: /* @__PURE__ */ jsxDEV(NotFoundPage, {}, void 0, false, {
-							fileName: _jsxFileName$1,
-							lineNumber: 168,
-							columnNumber: 46
-						}, this)
-					}, void 0, false, {
-						fileName: _jsxFileName$1,
-						lineNumber: 168,
-						columnNumber: 21
-					}, this)
-				] }, void 0, true, {
-					fileName: _jsxFileName$1,
-					lineNumber: 164,
-					columnNumber: 19
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 160,
-				columnNumber: 17
-			}, this),
-			/* @__PURE__ */ jsxDEV(PurchaseSheet, {}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 171,
-				columnNumber: 17
-			}, this),
-			adminOpen && /* @__PURE__ */ jsxDEV(Suspense, {
+						element: /* @__PURE__ */ jsx(NotFoundPage, {})
+					})
+				] })
+			}),
+			/* @__PURE__ */ jsx(PurchaseSheet, {}),
+			adminOpen && /* @__PURE__ */ jsx(Suspense, {
 				fallback: null,
-				children: /* @__PURE__ */ jsxDEV(AdminModal, {
+				children: /* @__PURE__ */ jsx(AdminModal, {
 					open: adminOpen,
 					onClose: handleCloseAdmin
-				}, void 0, false, {
-					fileName: _jsxFileName$1,
-					lineNumber: 174,
-					columnNumber: 21
-				}, this)
-			}, void 0, false, {
-				fileName: _jsxFileName$1,
-				lineNumber: 173,
-				columnNumber: 19
-			}, this)
-		] }, void 0, true, {
-			fileName: _jsxFileName$1,
-			lineNumber: 156,
-			columnNumber: 15
-		}, this) }, void 0, false, {
-			fileName: _jsxFileName$1,
-			lineNumber: 155,
-			columnNumber: 13
-		}, this) }, void 0, false, {
-			fileName: _jsxFileName$1,
-			lineNumber: 154,
-			columnNumber: 11
-		}, this) }, void 0, false, {
-			fileName: _jsxFileName$1,
-			lineNumber: 153,
-			columnNumber: 9
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName$1,
-		lineNumber: 152,
-		columnNumber: 7
-	}, this) }, void 0, false, {
-		fileName: _jsxFileName$1,
-		lineNumber: 151,
-		columnNumber: 5
-	}, this);
+				})
+			})
+		] }) }) }) })
+	}) });
 }
 // src/entry-server.tsx
-var _jsxFileName = "/app/applet/src/entry-server.tsx";
 var KNOWN_STATIC_BASE_PATHS = /* @__PURE__ */ new Set([
 	"/",
 	"/shop",
@@ -9426,9 +6042,11 @@ var KNOWN_STATIC_BASE_PATHS = /* @__PURE__ */ new Set([
 	"/orders",
 	"/cart",
 	"/checkout",
+	"/order-confirmed",
 	"/profile",
 	"/auth",
-	"/admin"
+	"/admin",
+	"/status"
 ]);
 function renderRoute(options) {
 	const origin = (options.origin || STORE_CONFIG.siteUrl).replace(/\/+$/, "");
@@ -9533,19 +6151,18 @@ function renderRoute(options) {
 			noIndex: true
 		};
 	}
+	const LAZY_PRIVATE_ROUTES = /* @__PURE__ */ new Set([
+		"/orders",
+		"/profile",
+		"/auth",
+		"/admin",
+		"/status"
+	]);
 	const locationPath = `${pathname}${search}`;
-	const html = renderToString(/* @__PURE__ */ jsxDEV(StaticRouter, {
+	const html = LAZY_PRIVATE_ROUTES.has(basePath) ? "" : renderToString(/* @__PURE__ */ jsx(StaticRouter, {
 		location: locationPath,
-		children: /* @__PURE__ */ jsxDEV(AppShell, { queryClient: ssrQueryClient }, void 0, false, {
-			fileName: _jsxFileName,
-			lineNumber: 185,
-			columnNumber: 7
-		}, this)
-	}, void 0, false, {
-		fileName: _jsxFileName,
-		lineNumber: 184,
-		columnNumber: 5
-	}, this));
+		children: /* @__PURE__ */ jsx(AppShell, { queryClient: ssrQueryClient })
+	}));
 	const dehydratedState = dehydrate(ssrQueryClient);
 	ssrQueryClient.clear();
 	return {
@@ -9558,4 +6175,4 @@ function renderRoute(options) {
 		seoConfig
 	};
 }
-export { NotificationListSkeleton as a, TurnstileField as c, useTheme as d, FriendlyErrorState as i, ResilientImage as l, AdminWorkspaceSkeleton as n, ProfilePageSkeleton as o, CardListSkeleton as r, renderRoute, SellerDashboardSkeleton as s, SeoHead as t, useCart as u };
+export { NotificationListSkeleton as a, TurnstileField as c, STORE_CONFIG as d, useLocale as f, FriendlyErrorState as i, ResilientImage as l, useTheme as m, AdminWorkspaceSkeleton as n, ProfilePageSkeleton as o, useCart as p, CardListSkeleton as r, renderRoute, SellerDashboardSkeleton as s, SeoHead as t, saveOrderReceipt as u };

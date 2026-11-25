@@ -758,6 +758,19 @@ export function getRouteSeoConfig(
     };
   }
 
+  if (basePath === '/status') {
+    return {
+      title: normalizeMetaTitle(`Status — ${STORE_CONFIG.shortName}`),
+      description: normalizeMetaDescription(
+        'Backend mode and Supabase connectivity diagnostics.'
+      ),
+      canonicalPath: '/status',
+      type: 'website',
+      noIndex: true,
+      locale,
+    };
+  }
+
   return {
     title: normalizeMetaTitle(`404 Page Not Found — ${STORE_CONFIG.shortName}`),
     description: normalizeMetaDescription(`The requested page could not be found on ${SITE_NAME}.`),

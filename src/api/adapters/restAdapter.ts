@@ -291,10 +291,14 @@ export const restAdapter: BackendApi = {
       });
     },
     async deleteProduct(adminToken, productId) {
-      await httpRequest<{ ok: boolean }>(`/api/admin/products/${encodeURIComponent(productId)}`, {
-        method: 'DELETE',
-        token: adminToken,
-      });
+      const res = await httpRequest<{ ok: boolean; outcome?: 'deleted' | 'archived' }>(
+        `/api/admin/products/${encodeURIComponent(productId)}`,
+        {
+          method: 'DELETE',
+          token: adminToken,
+        }
+      );
+      return { outcome: res.outcome || 'deleted' };
     },
     async saveCategory(adminToken, category) {
       return httpRequest<Category>('/api/admin/categories', {
@@ -302,6 +306,17 @@ export const restAdapter: BackendApi = {
         token: adminToken,
         body: JSON.stringify(category),
       });
+    },
+    async deleteCategory(adminToken, categoryId, options) {
+      const qs = options?.cascadeProducts ? '?cascade=true' : '';
+      const res = await httpRequest<{ ok: boolean; deletedProductIds?: string[] }>(
+        `/api/admin/categories/${encodeURIComponent(categoryId)}${qs}`,
+        {
+          method: 'DELETE',
+          token: adminToken,
+        }
+      );
+      return { deletedProductIds: res.deletedProductIds || [] };
     },
     async saveInstallmentPlans(adminToken, plans) {
       return httpRequest<InstallmentPlan[]>('/api/admin/installment-plans', {

@@ -1085,15 +1085,45 @@ export const supabaseAdapter = {
     async deleteProduct(_adminToken, productId) {
       const sb = getSupabase();
       await requireAdminUser(sb);
-      const { error } = await sb.from('products').delete().eq('id', productId);
-      if (error) {
-        // If product is referenced by existing orders, soft-deactivate instead
-        const { error: softErr } = await sb
+      const cleanId = String(productId || '').trim();
+      if (!cleanId) throw new Error('Product ID is required.');
+
+      // Remove product cost row first if present so no non-cascading FK blocks product deletion
+      await sb.from('product_costs').delete().eq('product_id', cleanId);
+
+      const { data: deletedRows, error } = await sb
+        .from('products')
+        .delete()
+        .eq('id', cleanId)
+        .select('id');
+
+      if (!error && Array.isArray(deletedRows) && deletedRows.length > 0) {
+        return { outcome: 'deleted' };
+      }
+
+      // If product is referenced by existing orders (FK 23503), archive by setting is_active = false
+      if (error && (error.code === '23503' || /foreign key|violates/i.test(error.message || ''))) {
+        const { data: softRows, error: softErr } = await sb
           .from('products')
           .update({ is_active: false })
-          .eq('id', productId);
-        if (softErr) throw toFriendlySupabaseError(error, 'Could not delete product.');
+          .eq('id', cleanId)
+          .select('id');
+        if (softErr || !softRows || softRows.length === 0) {
+          throw toFriendlySupabaseError(
+            softErr || error,
+            'Product is linked to existing orders and could not be archived. Check Supabase RLS policies.'
+          );
+        }
+        return { outcome: 'archived' };
       }
+
+      if (error) {
+        throw toFriendlySupabaseError(error, 'Could not delete product.');
+      }
+
+      throw new Error(
+        'Product was not removed from Supabase. Verify your admin user has DELETE permission on the products table.'
+      );
     },
 
     async saveCategory(_adminToken, category) {
@@ -1117,6 +1147,79 @@ export const supabaseAdapter = {
         .single();
       if (error || !data) throw toFriendlySupabaseError(error, 'Could not create category.');
       return mapDbCategory(data);
+    },
+
+    async deleteCategory(_adminToken, categoryId, options) {
+      const sb = getSupabase();
+      await requireAdminUser(sb);
+      const cleanCatId = String(categoryId || '').trim();
+      if (!cleanCatId) throw new Error('Category ID is required.');
+
+      const { data: childProds, error: childErr } = await sb
+        .from('products')
+        .select('id,title')
+        .eq('category_id', cleanCatId);
+      if (childErr) {
+        throw toFriendlySupabaseError(childErr, 'Could not check category products.');
+      }
+
+      const deletedProductIds = [];
+      if (Array.isArray(childProds) && childProds.length > 0) {
+        if (!options?.cascadeProducts) {
+          throw new Error(
+            `This category still has ${childProds.length} product(s). Delete or reassign them first, or choose "Delete with products".`
+          );
+        }
+
+        const childIds = childProds.map((p) => String(p.id));
+        await sb.from('product_costs').delete().in('product_id', childIds);
+
+        for (const childId of childIds) {
+          const { data: removedChild, error: remErr } = await sb
+            .from('products')
+            .delete()
+            .eq('id', childId)
+            .select('id');
+
+          if (remErr && (remErr.code === '23503' || /foreign key|violates/i.test(remErr.message || ''))) {
+            throw new Error(
+              'Cannot delete this category because at least one product in it is linked to existing orders. Move those products to another category first.'
+            );
+          }
+          if (remErr) {
+            throw toFriendlySupabaseError(remErr, 'Could not delete products inside this category.');
+          }
+          if (!removedChild || removedChild.length === 0) {
+            throw new Error(
+              'Could not delete products inside this category (check Supabase DELETE policy on products).'
+            );
+          }
+          deletedProductIds.push(childId);
+        }
+      }
+
+      const { data: deletedCats, error: delErr } = await sb
+        .from('categories')
+        .delete()
+        .eq('id', cleanCatId)
+        .select('id');
+
+      if (delErr) {
+        if (delErr.code === '23503' || /foreign key|violates/i.test(delErr.message || '')) {
+          throw new Error(
+            'Cannot delete this category because existing products or orders still reference it in Supabase.'
+          );
+        }
+        throw toFriendlySupabaseError(delErr, 'Could not delete category.');
+      }
+
+      if (!deletedCats || deletedCats.length === 0) {
+        throw new Error(
+          'Category was not removed from Supabase. Verify your admin user has DELETE permission on the categories table.'
+        );
+      }
+
+      return { deletedProductIds };
     },
 
     async saveInstallmentPlans(_adminToken, plans) {

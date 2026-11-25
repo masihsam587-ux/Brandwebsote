@@ -31,6 +31,7 @@ const KNOWN_STATIC_BASE_PATHS = new Set([
   '/profile',
   '/auth',
   '/admin',
+  '/status',
 ]);
 
 export interface ServerRenderResult {
@@ -180,7 +181,7 @@ export function renderRoute(options: {
     };
   }
 
-  const LAZY_PRIVATE_ROUTES = new Set(['/orders', '/profile', '/auth', '/admin']);
+  const LAZY_PRIVATE_ROUTES = new Set(['/orders', '/profile', '/auth', '/admin', '/status']);
   const locationPath = `${pathname}${search}`;
   const html = LAZY_PRIVATE_ROUTES.has(basePath)
     ? ''

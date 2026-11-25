@@ -115,8 +115,12 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
   const [sendingNotif, setSendingNotif] = useState(false);
   const [replyingFeedbackId, setReplyingFeedbackId] = useState<string | null>(null);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [confirmDeleteProductId, setConfirmDeleteProductId] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [savingCategory, setSavingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<string | null>(null);
   const [savingPlans, setSavingPlans] = useState(false);
 
   // Manual Dashboard Entry form state
@@ -288,8 +292,10 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
         setPlans(pls);
         setManualEntries(mans);
         setTermsDoc(terms);
-        if (cats.length > 0 && !prodCat) setProdCat(cats[0].id);
-        if (usrs.length > 0 && !targetUserId) setTargetUserId(usrs[0].id);
+        setProdCat((prev) => (prev && cats.some((c) => c.id === prev) ? prev : cats[0]?.id || ''));
+        setTargetUserId((prev) =>
+          prev && usrs.some((u) => u.id === prev) ? prev : usrs[0]?.id || ''
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to load admin workspace';
         if (/401|403|unauthori|expired|token|password/i.test(msg)) {
@@ -303,7 +309,7 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
         setLoadingData(false);
       }
     },
-    [lockAdminSession, prodCat, showToast, targetUserId]
+    [lockAdminSession, showToast]
   );
 
   useEffect(() => {
@@ -560,11 +566,110 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
       setNewCatName('');
       queryClient.invalidateQueries({ queryKey: ['home'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category'] });
       showToast(`Category "${created.name}" created.`, 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to create category', 'error');
     } finally {
       setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    if (!adminToken || deletingProductId) return;
+    setDeletingProductId(product.id);
+    try {
+      const result = await adminService.deleteProduct(adminToken, product.id);
+      const outcome = result && typeof result === 'object' ? result.outcome : 'deleted';
+
+      if (outcome === 'archived') {
+        setProducts((prev) =>
+          prev.map((x) => (x.id === product.id ? { ...x, inStock: false } : x))
+        );
+        showToast(
+          `"${product.title}" is linked to past orders, so it was archived and hidden from your shop.`,
+          'info'
+        );
+      } else {
+        setProducts((prev) => prev.filter((x) => x.id !== product.id));
+        if (editingId === product.id) {
+          setEditingId(null);
+          setProdTitle('');
+          setProdPrice('');
+          setProdCost('');
+          setProdDesc('');
+          setProdCover('');
+          setProdExtra('');
+        }
+        showToast(`Product "${product.title}" deleted from backend.`, 'success');
+      }
+
+      setConfirmDeleteProductId(null);
+      const ov = await adminService.getOverview(adminToken);
+      setOverview(ov);
+      queryClient.invalidateQueries({ queryKey: ['home'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
+      queryClient.invalidateQueries({ queryKey: ['category'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not delete product.', 'error');
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
+
+  const handleDeleteCategory = async (category: Category, cascadeProducts: boolean) => {
+    if (!adminToken || deletingCategoryId) return;
+    setDeletingCategoryId(category.id);
+    try {
+      const result = await adminService.deleteCategory(adminToken, category.id, {
+        cascadeProducts,
+      });
+      const removedProdIds = new Set(
+        result && typeof result === 'object' && Array.isArray(result.deletedProductIds)
+          ? result.deletedProductIds
+          : []
+      );
+
+      const remainingCategories = categories.filter((c) => c.id !== category.id);
+      setCategories((prev) => prev.filter((c) => c.id !== category.id));
+      if (removedProdIds.size > 0 || cascadeProducts) {
+        setProducts((prev) =>
+          prev.filter(
+            (p) => !removedProdIds.has(p.id) && !(cascadeProducts && p.categoryId === category.id)
+          )
+        );
+        if (editingId && removedProdIds.has(editingId)) {
+          setEditingId(null);
+          setProdTitle('');
+          setProdPrice('');
+          setProdCost('');
+          setProdDesc('');
+          setProdCover('');
+          setProdExtra('');
+        }
+      }
+      setProdCat((prev) => (prev === category.id ? remainingCategories[0]?.id || '' : prev));
+      setConfirmDeleteCategoryId(null);
+
+      const ov = await adminService.getOverview(adminToken);
+      setOverview(ov);
+      queryClient.invalidateQueries({ queryKey: ['home'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['category'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
+      showToast(
+        removedProdIds.size > 0
+          ? `Category "${category.name}" and ${removedProdIds.size} product(s) deleted.`
+          : `Category "${category.name}" deleted.`,
+        'success'
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not delete category.', 'error');
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -685,8 +790,10 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
     savingManual ||
     sendingNotif ||
     savingProduct ||
+    Boolean(deletingProductId) ||
     uploadingCover ||
     savingCategory ||
+    Boolean(deletingCategoryId) ||
     savingPlans;
 
   // Dedicated Full-Screen Glass Lock Screen when not yet verified
@@ -1742,76 +1849,238 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
                         </div>
                       </form>
 
-                      {/* Existing Products & Category Creator */}
+                      {/* Existing Categories & Products Manager */}
                       <div className="space-y-4">
-                        <div className="flex gap-2 rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] p-4">
-                          <input
-                            type="text"
-                            value={newCatName}
-                            onChange={(e) => setNewCatName(e.target.value)}
-                            placeholder="New category name..."
-                            className="min-w-0 flex-1 rounded-xl border border-[var(--ca-border)] bg-[var(--ca-bg)] px-3 py-2 text-xs"
-                          />
-                          <CAProcessButton
-                            type="button"
-                            loading={savingCategory}
-                            onClick={handleCreateCategory}
-                            className="shrink-0 rounded-xl bg-[var(--ca-text)] px-3.5 py-2 text-xs font-semibold text-[var(--ca-bg)]"
-                          >
-                            Add Category
-                          </CAProcessButton>
+                        <div className="space-y-3 rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] p-4">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newCatName}
+                              onChange={(e) => setNewCatName(e.target.value)}
+                              placeholder="New category name..."
+                              className="min-w-0 flex-1 rounded-xl border border-[var(--ca-border)] bg-[var(--ca-bg)] px-3 py-2 text-xs"
+                            />
+                            <CAProcessButton
+                              type="button"
+                              loading={savingCategory}
+                              onClick={handleCreateCategory}
+                              className="shrink-0 rounded-xl bg-[var(--ca-text)] px-3.5 py-2 text-xs font-semibold text-[var(--ca-bg)]"
+                            >
+                              Add Category
+                            </CAProcessButton>
+                          </div>
+
+                          {/* Categories List with Delete */}
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium text-[var(--ca-text-muted)]">
+                              Categories ({categories.length})
+                            </p>
+                            {categories.length === 0 ? (
+                              <p className="rounded-xl bg-[var(--ca-surface-subtle)] px-3 py-2 text-xs text-[var(--ca-text-muted)]">
+                                No categories yet. Add one above to list products.
+                              </p>
+                            ) : (
+                              <div
+                                data-testid="admin-categories-list"
+                                className="max-h-72 space-y-1.5 overflow-y-auto pr-1"
+                              >
+                                {categories.map((cat) => {
+                                  const prodCount = products.filter(
+                                    (pr) => pr.categoryId === cat.id
+                                  ).length;
+                                  const isConfirming = confirmDeleteCategoryId === cat.id;
+                                  const isDeleting = deletingCategoryId === cat.id;
+                                  return (
+                                    <div
+                                      key={cat.id}
+                                      data-testid={`admin-category-row-${cat.id}`}
+                                      className="rounded-xl border border-[var(--ca-border)] bg-[var(--ca-bg)] px-3 py-2 text-xs"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <span className="font-semibold text-[var(--ca-text)]">
+                                            {cat.name}
+                                          </span>
+                                          <span className="ml-2 text-[11px] text-[var(--ca-text-muted)]">
+                                            ({prodCount} {prodCount === 1 ? 'product' : 'products'})
+                                          </span>
+                                        </div>
+                                        {!isConfirming && (
+                                          <button
+                                            type="button"
+                                            disabled={Boolean(deletingCategoryId)}
+                                            onClick={(e) => {
+                                              const row = e.currentTarget.closest(
+                                                '[data-testid^="admin-category-row-"]'
+                                              );
+                                              setConfirmDeleteCategoryId(cat.id);
+                                              window.requestAnimationFrame(() => {
+                                                row?.scrollIntoView({
+                                                  block: 'nearest',
+                                                  behavior: 'smooth',
+                                                });
+                                              });
+                                            }}
+                                            data-testid={`delete-category-${cat.id}`}
+                                            aria-label={`Delete category ${cat.name}`}
+                                            className="inline-flex min-h-[36px] shrink-0 items-center gap-1 rounded-lg border border-red-500/20 px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-500/10 disabled:opacity-50"
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Delete
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      {isConfirming && (
+                                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-500/8 px-2.5 py-2">
+                                          <span className="text-[11px] text-red-700 dark:text-red-300">
+                                            {prodCount > 0
+                                              ? `Delete "${cat.name}" and its ${prodCount} product(s)?`
+                                              : `Permanently delete "${cat.name}"?`}
+                                          </span>
+                                          <div className="flex items-center gap-1.5">
+                                            <button
+                                              type="button"
+                                              disabled={isDeleting}
+                                              onClick={() =>
+                                                handleDeleteCategory(cat, prodCount > 0)
+                                              }
+                                              data-testid={`confirm-delete-category-${cat.id}`}
+                                              className="inline-flex min-h-[34px] items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                                            >
+                                              {isDeleting ? <CALoader size="sm" /> : null}
+                                              {prodCount > 0
+                                                ? `Delete Category & ${prodCount} Product(s)`
+                                                : 'Confirm Delete'}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={isDeleting}
+                                              onClick={() => setConfirmDeleteCategoryId(null)}
+                                              className="inline-flex min-h-[34px] items-center rounded-lg border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-2.5 py-1 text-[11px] font-medium text-[var(--ca-text)]"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-                          {products.slice(0, visibleProductsCount).map((p) => (
-                            <div
-                              key={p.id}
-                              className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] p-3"
-                            >
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-[var(--ca-text)]">
-                                  {p.title}
-                                </p>
-                                <p className="font-mono-nums text-[11px] text-[var(--ca-text-muted)]">
-                                  Sell {formatPKR(p.price)} · Cost {formatPKR(p.costPrice || 0)} ·{' '}
-                                  {p.categoryName}
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingId(p.id);
-                                    setProdTitle(p.title);
-                                    setProdPrice(String(p.price));
-                                    setProdCost(String(p.costPrice || 0));
-                                    setProdCat(p.categoryId);
-                                    setProdDesc(p.description);
-                                    setProdCover(p.coverImage);
-                                    setProdExtra((p.extraImages || []).join(', '));
-                                  }}
-                                  className="rounded-lg border border-[var(--ca-border)] px-2.5 py-1 text-xs"
+                        <div
+                          data-testid="admin-products-list"
+                          className="max-h-80 space-y-2 overflow-y-auto pr-1"
+                        >
+                          {products.length === 0 ? (
+                            <p className="rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] p-4 text-center text-xs text-[var(--ca-text-muted)]">
+                              No products in catalog.
+                            </p>
+                          ) : (
+                            products.slice(0, visibleProductsCount).map((p) => {
+                              const isConfirmingProd = confirmDeleteProductId === p.id;
+                              const isDeletingProd = deletingProductId === p.id;
+                              return (
+                                <div
+                                  key={p.id}
+                                  data-testid={`admin-product-row-${p.id}`}
+                                  className="rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] p-3"
                                 >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (!adminToken) return;
-                                    await adminService.deleteProduct(adminToken, p.id);
-                                    setProducts((prev) => prev.filter((x) => x.id !== p.id));
-                                    queryClient.invalidateQueries({ queryKey: ['home'] });
-                                    queryClient.invalidateQueries({ queryKey: ['products'] });
-                                    showToast('Product removed.', 'info');
-                                  }}
-                                  aria-label={`Delete ${p.title}`}
-                                  className="rounded-lg border border-red-500/20 p-1.5 text-red-600 hover:bg-red-500/10"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-xs font-semibold text-[var(--ca-text)]">
+                                          {p.title}
+                                        </p>
+                                        {!p.inStock && (
+                                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                                            Archived
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="font-mono-nums text-[11px] text-[var(--ca-text-muted)]">
+                                        Sell {formatPKR(p.price)} · Cost {formatPKR(p.costPrice || 0)} ·{' '}
+                                        {p.categoryName}
+                                      </p>
+                                    </div>
+                                    <div className="flex shrink-0 gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingId(p.id);
+                                          setProdTitle(p.title);
+                                          setProdPrice(String(p.price));
+                                          setProdCost(String(p.costPrice || 0));
+                                          setProdCat(p.categoryId);
+                                          setProdDesc(p.description);
+                                          setProdCover(p.coverImage);
+                                          setProdExtra((p.extraImages || []).join(', '));
+                                        }}
+                                        className="min-h-[36px] rounded-lg border border-[var(--ca-border)] px-2.5 py-1 text-xs"
+                                      >
+                                        Edit
+                                      </button>
+                                      {!isConfirmingProd && (
+                                        <button
+                                          type="button"
+                                          disabled={Boolean(deletingProductId)}
+                                          onClick={(e) => {
+                                            const row = e.currentTarget.closest(
+                                              '[data-testid^="admin-product-row-"]'
+                                            );
+                                            setConfirmDeleteProductId(p.id);
+                                            window.requestAnimationFrame(() => {
+                                              row?.scrollIntoView({
+                                                block: 'nearest',
+                                                behavior: 'smooth',
+                                              });
+                                            });
+                                          }}
+                                          data-testid={`delete-product-${p.id}`}
+                                          aria-label={`Delete ${p.title}`}
+                                          className="inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg border border-red-500/20 p-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-50"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {isConfirmingProd && (
+                                    <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-red-500/8 px-3 py-2">
+                                      <span className="text-[11px] text-red-700 dark:text-red-300">
+                                        Delete "{p.title}" from store and backend?
+                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          disabled={isDeletingProd}
+                                          onClick={() => handleDeleteProduct(p)}
+                                          data-testid={`confirm-delete-product-${p.id}`}
+                                          className="inline-flex min-h-[34px] items-center gap-1 rounded-lg bg-red-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                                        >
+                                          {isDeletingProd ? <CALoader size="sm" /> : null}
+                                          Confirm Delete
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={isDeletingProd}
+                                          onClick={() => setConfirmDeleteProductId(null)}
+                                          className="inline-flex min-h-[34px] items-center rounded-lg border border-[var(--ca-border)] bg-[var(--ca-bg)] px-2.5 py-1 text-[11px] font-medium text-[var(--ca-text)]"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
                           {products.length > visibleProductsCount && (
                             <button
                               type="button"
