@@ -154,3 +154,32 @@ export function canTriggerAction(actionKey: string, cooldownMs = 800): boolean {
 export function isValidAdminHash(hash: string): boolean {
   return hash.toLowerCase() === '#admin' || hash.toLowerCase().endsWith('#admin');
 }
+
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall back to textarea selection in restricted iframe contexts
+    }
+  }
+  if (typeof document !== 'undefined') {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(area);
+      return Boolean(ok);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}

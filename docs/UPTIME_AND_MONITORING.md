@@ -14,7 +14,7 @@ Configure an external monitor (Better Stack / UptimeRobot / Checkly / Cloudflare
 | Primary Storefront | `GET /` | 1 min | `200 OK`, contains `Cinematic Arts` | 2 consecutive failures or TTFB > 1500 ms |
 | Urdu RTL Storefront | `GET /ur` | 5 min | `200 OK`, `lang="ur" dir="rtl"` | 2 consecutive failures |
 | SEO Sitemap & Robots | `GET /sitemap.xml` & `GET /robots.txt` | 15 min | `200 OK`, valid XML / `Disallow: /admin` | Any non-200 or unexpected `Disallow: /` |
-| TLS / SSL Certificate | `https://cinematicarts.pk` | Daily | Valid certificate chain | < 14 days before expiry |
+| TLS / SSL Certificate | `https://cinematicartstore.netlify.app` | Daily | Valid certificate chain | < 14 days before expiry |
 
 ---
 
@@ -84,5 +84,5 @@ Enable email/webhook notifications inside **Supabase Dashboard -> Project Settin
   - Review Sentry unresolved issues & performance Web Vitals (`LCP < 2.5s`, `CLS < 0.1`, `INP < 200ms`).
   - Run `npm audit` and patch vulnerable dependencies (`found 0 vulnerabilities` target).
 - **Monthly:**
-  - Run `BASE_URL=https://staging.cinematicarts.pk LOAD_PROFILE=smoke k6 run load-tests/k6-plan.js` against staging and verify all SLA thresholds return `PASS`.
+  - Run `BASE_URL=https://cinematicartstore.netlify.app LOAD_PROFILE=smoke k6 run load-tests/k6-plan.js` against live/staging and verify all SLA thresholds return `PASS`.
   - Rotate `ADMIN_PASSWORD` / `ADMIN_TOKEN_SECRET` if needed and verify backup restore integrity.

@@ -16,7 +16,7 @@ import {
   buildOrganizationJsonLd,
   buildWebSiteJsonLd,
 } from '../services/seoService';
-import { STORE_CONFIG } from '../services/siteConfig';
+import { getRuntimeOrigin, STORE_CONFIG } from '../services/siteConfig';
 import { deriveActiveCategoryCards } from '../utils/catalogCategories';
 
 interface HomePageProps {
@@ -72,8 +72,7 @@ export function HomePage({ onNetworkError }: HomePageProps) {
     onNetworkError?.(error);
   }, [error, onNetworkError]);
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl;
+  const origin = getRuntimeOrigin();
 
   const homeJsonLd = useMemo(
     () => [

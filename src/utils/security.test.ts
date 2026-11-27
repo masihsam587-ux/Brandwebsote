@@ -30,7 +30,7 @@ test('sanitizeUrlPath blocks open redirects and protocol schemes', () => {
 test('sanitizeExternalUrl allows only https, mailto, tel, or internal paths', () => {
   const scriptScheme = 'java' + 'script:alert(1)';
   assert.equal(sanitizeExternalUrl('https://wa.me/923355329722'), 'https://wa.me/923355329722');
-  assert.equal(sanitizeExternalUrl('mailto:masihsam587@gmail.com'), 'mailto:masihsam587@gmail.com');
+  assert.equal(sanitizeExternalUrl('mailto:cinematicartsofficial.io@gmail.com'), 'mailto:cinematicartsofficial.io@gmail.com');
   assert.equal(sanitizeExternalUrl('tel:03355329722'), 'tel:03355329722');
   assert.equal(sanitizeExternalUrl(scriptScheme), '#');
   assert.equal(sanitizeExternalUrl('http://insecure.example.com'), '#');

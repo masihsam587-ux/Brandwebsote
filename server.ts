@@ -48,6 +48,7 @@ import {
   calculateCommission,
   calculateInstallmentPlan,
   calculateOrderPaidSummary,
+  deriveProductStockStatus,
   generateSellerId,
   sanitizeText,
   slugify,
@@ -397,6 +398,7 @@ function optionalUser(req: Request): StoredUser | null {
 
 const ALLOWED_ORIGINS = new Set(
   [
+    STORE_CONFIG.siteUrl,
     `http://localhost:${PORT}`,
     `http://127.0.0.1:${PORT}`,
     ...(process.env.CORS_ORIGIN || '')
@@ -630,6 +632,11 @@ async function startServer() {
       res.json({ valid: false });
       return;
     }
+    const requester = optionalUser(req);
+    if (requester && requester.id === seller.id) {
+      res.json({ valid: false, selfReferral: true });
+      return;
+    }
     res.json({ valid: true, sellerId: seller.id, sellerName: seller.name });
   });
 
@@ -797,6 +804,23 @@ async function startServer() {
     });
   });
 
+  app.post('/api/auth/update-password', requireUser, (req, res) => {
+    const user = (req as Request & { currentUser?: StoredUser }).currentUser;
+    if (!user) {
+      res.status(401).json({ error: 'Session expired. Please request a new reset link.' });
+      return;
+    }
+    const newPassword = String(req.body?.password || '');
+    if (!isStrongPassword(newPassword)) {
+      res.status(400).json({
+        error: 'Password must be at least 8 characters and include letters and numbers or symbols.',
+      });
+      return;
+    }
+    user.passwordHash = hashSecret(newPassword);
+    res.json({ message: 'Your password has been updated. You are now signed in.' });
+  });
+
   // ==================== ORDERS (IDEMPOTENT & SERVER-RECOMPUTED) ====================
   app.post('/api/orders', async (req, res) => {
     const ip = getClientIp(req);
@@ -851,6 +875,10 @@ async function startServer() {
       seller = store.users.find(
         (u) => u.role === 'seller' && u.isActiveSeller && u.sellerCode?.toUpperCase() === referralCode
       );
+      if (seller && user && seller.id === user.id) {
+        res.status(400).json({ error: 'You cannot use your own Seller Referral ID.' });
+        return;
+      }
       if (paymentMethod === 'installments' && !seller) {
         res.status(400).json({ error: 'Installment orders require a valid active Seller Referral ID.' });
         return;
@@ -870,7 +898,22 @@ async function startServer() {
         res.status(400).json({ error: 'One or more ordered items are no longer available.' });
         return;
       }
-      const qty = Math.max(1, Math.min(20, Math.floor(Number(raw?.quantity || 1))));
+      const stockStatus = deriveProductStockStatus(prod);
+      if (!stockStatus.isAvailable) {
+        res.status(400).json({ error: `"${prod.title}" is currently out of stock.` });
+        return;
+      }
+      const rawQty = Math.max(1, Math.min(20, Math.floor(Number(raw?.quantity || 1))));
+      if (
+        typeof stockStatus.remainingUnits === 'number' &&
+        rawQty > stockStatus.remainingUnits
+      ) {
+        res.status(400).json({
+          error: `Only ${stockStatus.remainingUnits} unit(s) of "${prod.title}" remaining in stock.`,
+        });
+        return;
+      }
+      const qty = rawQty;
       baseSubtotal += prod.price * qty;
       canonicalItems.push({
         productId: prod.id,
@@ -1605,7 +1648,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
 
-    app.use('*', async (req, res, next) => {
+    app.use(async (req, res, next) => {
       if (!isHtmlNavigationRequest(req)) {
         next();
         return;
@@ -1672,7 +1715,7 @@ async function startServer() {
       })
     );
 
-    app.get('*', async (req, res) => {
+    app.get('/{*splat}', async (req, res) => {
       if (fs.existsSync(ssrBundlePath) && fs.existsSync(templatePath)) {
         try {
           const ssrMod = (await import(pathToFileURL(ssrBundlePath).href)) as {

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AdminConsole } from './AdminConsole';
 
 interface AdminModalProps {
@@ -6,6 +7,17 @@ interface AdminModalProps {
 }
 
 export function AdminModal({ open, onClose }: AdminModalProps) {
+  useEffect(() => {
+    if (!open || typeof window === 'undefined') return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

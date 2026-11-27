@@ -9,7 +9,7 @@
  *   BASE_URL=http://127.0.0.1:3000 k6 run load-tests/k6-plan.js
  *
  * Run staging stress test:
- *   BASE_URL=https://staging.cinematicarts.pk LOAD_PROFILE=stress k6 run load-tests/k6-plan.js
+ *   BASE_URL=https://cinematicartstore.netlify.app LOAD_PROFILE=stress k6 run load-tests/k6-plan.js
  */
 import http from 'k6/http';
 import { check, sleep } from 'k6';

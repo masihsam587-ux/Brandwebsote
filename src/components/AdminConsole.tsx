@@ -254,6 +254,18 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
   }, [active, adminToken, lockAdminSession]);
 
   useEffect(() => {
+    if (!selectedOrder || typeof window === 'undefined') return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedOrder(null);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [selectedOrder]);
+
+  useEffect(() => {
     if (!active) return;
     setAuthError(null);
     if (authUser?.email && !adminEmail) {
@@ -675,9 +687,20 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
 
   const handleSavePlans = async () => {
     if (!adminToken || savingPlans) return;
+    const sanitizedPlans = plans.map((pl) => ({
+      ...pl,
+      label: pl.label.trim() || `${Math.max(1, Math.min(36, Math.round(Number(pl.months) || 1)))} Months`,
+      months: Number.isFinite(pl.months) ? Math.max(1, Math.min(36, Math.round(pl.months))) : 2,
+      markupPercent: Number.isFinite(pl.markupPercent)
+        ? Math.max(0, Math.min(200, Math.round(pl.markupPercent * 100) / 100))
+        : 0,
+      advancePercent: Number.isFinite(pl.advancePercent)
+        ? Math.max(0, Math.min(90, Math.round(pl.advancePercent * 100) / 100))
+        : 0,
+    }));
     setSavingPlans(true);
     try {
-      const updated = await adminService.saveInstallmentPlans(adminToken, plans);
+      const updated = await adminService.saveInstallmentPlans(adminToken, sanitizedPlans);
       setPlans(updated);
       showToast('Installment plans updated.', 'success');
     } catch (err) {
@@ -1046,7 +1069,11 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setTab(item.id)}
+                onClick={() => {
+                  setTab(item.id);
+                  setConfirmDeleteCategoryId(null);
+                  setConfirmDeleteProductId(null);
+                }}
                 className={`btn-press inline-flex min-h-[44px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-medium transition-colors ${
                   tab === item.id
                     ? 'bg-[var(--ca-text)] text-[var(--ca-bg)]'
@@ -1775,11 +1802,15 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
                           onChange={(e) => setProdCat(e.target.value)}
                           className="w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-bg)] px-3 py-2 text-sm"
                         >
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
+                          {categories.length === 0 ? (
+                            <option value="">Create a category first</option>
+                          ) : (
+                            categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))
+                          )}
                         </select>
                         <textarea
                           rows={2}
@@ -2177,8 +2208,12 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
                                   max={36}
                                   value={pl.months}
                                   onChange={(e) => {
+                                    const raw = Number(e.target.value);
                                     const next = [...plans];
-                                    next[idx] = { ...pl, months: Number(e.target.value) };
+                                    next[idx] = {
+                                      ...pl,
+                                      months: Number.isFinite(raw) ? Math.max(1, Math.min(36, Math.round(raw))) : pl.months,
+                                    };
                                     setPlans(next);
                                   }}
                                   className="font-mono-nums mt-0.5 w-full rounded-lg border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-2 py-1"
@@ -2194,8 +2229,12 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
                                   max={200}
                                   value={pl.markupPercent}
                                   onChange={(e) => {
+                                    const raw = Number(e.target.value);
                                     const next = [...plans];
-                                    next[idx] = { ...pl, markupPercent: Number(e.target.value) };
+                                    next[idx] = {
+                                      ...pl,
+                                      markupPercent: Number.isFinite(raw) ? Math.max(0, Math.min(200, raw)) : pl.markupPercent,
+                                    };
                                     setPlans(next);
                                   }}
                                   className="font-mono-nums mt-0.5 w-full rounded-lg border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-2 py-1"
@@ -2211,8 +2250,12 @@ export function AdminConsole({ mode, active = true, onClose }: AdminConsoleProps
                                   max={90}
                                   value={pl.advancePercent}
                                   onChange={(e) => {
+                                    const raw = Number(e.target.value);
                                     const next = [...plans];
-                                    next[idx] = { ...pl, advancePercent: Number(e.target.value) };
+                                    next[idx] = {
+                                      ...pl,
+                                      advancePercent: Number.isFinite(raw) ? Math.max(0, Math.min(90, raw)) : pl.advancePercent,
+                                    };
                                     setPlans(next);
                                   }}
                                   className="font-mono-nums mt-0.5 w-full rounded-lg border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-2 py-1"

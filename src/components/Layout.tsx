@@ -98,10 +98,10 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
     <div className="flex min-h-screen flex-col bg-[var(--ca-bg)] text-[var(--ca-text)]">
       {/* Top Bar */}
       <header className="glass-bar pt-safe sticky top-0 z-40 border-b">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:h-16 sm:gap-4 sm:px-6">
           <Link
             to={localize('/')}
-            className="font-display inline-flex min-h-[44px] items-center text-xl font-semibold text-[var(--ca-text)] whitespace-nowrap shrink-0 sm:text-2xl"
+            className="font-display inline-flex min-h-[44px] items-center text-lg font-semibold text-[var(--ca-text)] whitespace-nowrap shrink-0 sm:text-2xl"
           >
             {t.brand}
           </Link>
@@ -113,28 +113,28 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
             <NavLink to={localize('/shop')} className={navLinkClass}>
               {t.nav.shop}
             </NavLink>
-            <NavLink to="/orders" className={navLinkClass}>
+            <NavLink to={localize('/orders')} className={navLinkClass}>
               {t.nav.orders}
             </NavLink>
-            <NavLink to="/profile" className={navLinkClass}>
+            <NavLink to={localize('/profile')} className={navLinkClass}>
               {t.nav.profile}{unreadNotifications > 0 ? ` (${unreadNotifications})` : ''}
             </NavLink>
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Link
               to={alternateHref}
               lang={locale === 'ur' ? 'en' : 'ur'}
               hrefLang={locale === 'ur' ? 'en' : 'ur'}
-              className="btn-press inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[var(--ca-surface-subtle)] px-3 py-2 text-xs font-medium text-[var(--ca-text)] hover:opacity-85 whitespace-nowrap"
+              className="btn-press inline-flex min-h-[44px] items-center gap-1 rounded-xl bg-[var(--ca-surface-subtle)] px-2.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:opacity-85 whitespace-nowrap sm:gap-1.5 sm:px-3"
             >
               <Globe className="h-3.5 w-3.5 text-[var(--ca-accent)]" />
               <span>{t.nav.switchLangLabel}</span>
             </Link>
 
             <Link
-              to={totalItems > 0 ? '/orders' : user ? localize('/shop') : '/auth'}
-              className="btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-4 py-2 text-xs font-medium text-[var(--ca-bg)] hover:opacity-90 whitespace-nowrap shrink-0"
+              to={totalItems > 0 ? localize('/orders') : user ? localize('/shop') : localize('/auth')}
+              className="btn-press inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-[var(--ca-text)] px-3 py-2 text-xs font-medium text-[var(--ca-bg)] hover:opacity-90 whitespace-nowrap shrink-0 sm:gap-2 sm:px-4"
             >
               <ShoppingBag className="h-3.5 w-3.5" />
               {totalItems > 0 ? (
@@ -232,12 +232,15 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
       )}
 
       {/* Smooth 250ms Route Page Transition */}
-      <main key={location.pathname} className="ca-page-enter flex-1 pb-20 md:pb-8">
+      <main
+        key={location.pathname}
+        className="ca-page-enter flex-1 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-8"
+      >
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="bg-[var(--ca-surface-subtle)] pb-20 md:pb-10">
+      <footer className="bg-[var(--ca-surface-subtle)] pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-10">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-5">
             <div className="md:col-span-2">
@@ -339,7 +342,7 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
                 </li>
                 <li>
                   <Link
-                    to="/orders"
+                    to={localize('/orders')}
                     className="inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"
                   >
                     {t.nav.orders}
@@ -355,7 +358,7 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
               <ul className="mt-3 space-y-1 text-sm">
                 <li>
                   <Link
-                    to="/profile"
+                    to={localize('/profile')}
                     className="inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"
                   >
                     {t.nav.profile}
@@ -363,7 +366,7 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
                 </li>
                 <li>
                   <Link
-                    to="/auth"
+                    to={localize('/auth')}
                     className="inline-flex min-h-[44px] items-center text-[var(--ca-text-muted)] hover:text-[var(--ca-text)]"
                   >
                     {t.nav.signIn}
@@ -440,7 +443,7 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
             <span>{t.nav.shop}</span>
           </Link>
           <Link
-            to="/orders"
+            to={localize('/orders')}
             className={`relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${
               basePath.startsWith('/orders')
                 ? 'text-[var(--ca-accent)]'
@@ -461,7 +464,7 @@ export function Layout({ children, networkError, onRetry }: LayoutProps) {
             </span>
           </Link>
           <Link
-            to="/profile"
+            to={localize('/profile')}
             className={`relative flex min-h-[44px] flex-col items-center justify-center gap-0.5 py-1 text-[11px] font-medium ${
               basePath.startsWith('/profile') || basePath.startsWith('/auth')
                 ? 'text-[var(--ca-accent)]'

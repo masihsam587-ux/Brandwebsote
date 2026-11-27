@@ -97,7 +97,3 @@ export function captureAppException(
 
   return referenceId;
 }
-
-export function isSentryEnabled(): boolean {
-  return sentryInitialized;
-}

@@ -3,9 +3,7 @@
  * Whenever a product slug changes, add oldSlug -> newSlug here (or in Supabase
  * `product_slug_redirects` table) so Express / Vercel / Netlify issue a 301 redirect.
  */
-export const STATIC_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {
-  // Example: 'old-womens-suit-slug': 'womens-embroidered-unstitched-suit',
-};
+const STATIC_PRODUCT_SLUG_REDIRECTS: Record<string, string> = {};
 
 const dynamicRedirects = new Map<string, string>(
   Object.entries(STATIC_PRODUCT_SLUG_REDIRECTS)

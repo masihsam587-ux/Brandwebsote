@@ -20,8 +20,10 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { useLocale } from '../i18n';
+import { getRuntimeOrigin } from '../services/siteConfig';
 import { calculateOrderPaidSummary, formatPKR } from '../utils/commerce';
-import { canTriggerAction, sanitizePlainText } from '../utils/security';
+import { canTriggerAction, copyTextToClipboard, sanitizePlainText } from '../utils/security';
 import {
   extractZodFieldErrors,
   feedbackCreateSchema,
@@ -44,6 +46,7 @@ export function ProfilePage() {
   const { clearCart } = useCart();
   const { theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
+  const { localize } = useLocale();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<ProfileTab>('account');
@@ -233,7 +236,7 @@ export function ProfilePage() {
       setUser(null);
       setDeleteOpen(false);
       showToast('Your account has been deleted.', 'info');
-      navigate('/');
+      navigate(localize('/'));
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Email confirmation mismatch', 'error');
     } finally {
@@ -241,14 +244,28 @@ export function ProfilePage() {
     }
   };
 
-  const handleShareSellerId = () => {
+  useEffect(() => {
+    if (!deleteOpen || typeof window === 'undefined') return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deletingAccount) {
+        setDeleteOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [deleteOpen, deletingAccount]);
+
+  const handleShareSellerId = async () => {
     if (!sellerData) return;
-    const shareText = `Shop Cinematic Arts (CA) with my verified Seller Referral ID: ${sellerData.sellerCode} — unlock 2, 3, or 4 month PKR installments at ${window.location.origin}/shop`;
+    const shareText = `Shop Cinematic Arts (CA) with my verified Seller Referral ID: ${sellerData.sellerCode} — unlock 2, 3, or 4 month PKR installments at ${getRuntimeOrigin()}${localize('/shop')}`;
     if (navigator.share) {
       navigator.share({ title: 'Cinematic Arts Referral', text: shareText }).catch(() => {});
     } else {
-      navigator.clipboard?.writeText(shareText);
-      showToast('Referral invitation copied to clipboard.', 'success');
+      const ok = await copyTextToClipboard(shareText);
+      showToast(
+        ok ? 'Referral invitation copied to clipboard.' : `Share ID: ${sellerData.sellerCode}`,
+        ok ? 'success' : 'info'
+      );
     }
   };
 
@@ -315,7 +332,7 @@ export function ProfilePage() {
                       await logout();
                       clearCart();
                       showToast('Signed out.', 'info');
-                      navigate('/');
+                      navigate(localize('/'));
                     }}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--ca-border)] px-3.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"
                   >
@@ -494,13 +511,13 @@ export function ProfilePage() {
                       <h3 className="text-sm font-semibold">Quick Links</h3>
                       <div className="mt-3 flex flex-col gap-2 text-xs">
                         <Link
-                          to="/orders"
+                          to={localize('/orders')}
                           className="rounded-xl bg-[var(--ca-surface-subtle)] px-3.5 py-2.5 font-medium hover:opacity-85"
                         >
                           View Bag &amp; My Orders
                         </Link>
                         <Link
-                          to="/shop"
+                          to={localize('/shop')}
                           className="rounded-xl bg-[var(--ca-surface-subtle)] px-3.5 py-2.5 font-medium hover:opacity-85"
                         >
                           Browse Catalog
@@ -561,8 +578,9 @@ export function ProfilePage() {
                         ) : (
                           <div className="space-y-3">
                             {notifications.map((n) => (
-                              <div
+                              <button
                                 key={n.id}
+                                type="button"
                                 onClick={async () => {
                                   if (!n.read) {
                                     await notificationService.markAsRead(n.id);
@@ -572,7 +590,7 @@ export function ProfilePage() {
                                     await refreshUnreadCount();
                                   }
                                 }}
-                                className={`rounded-xl p-4 transition-colors ${
+                                className={`w-full rounded-xl p-4 text-left transition-colors ${
                                   n.read
                                     ? 'bg-[var(--ca-surface-subtle)]'
                                     : 'bg-[var(--ca-accent)]/10 ring-1 ring-[var(--ca-accent)]/40'
@@ -587,7 +605,7 @@ export function ProfilePage() {
                                 <p className="mt-1.5 text-xs leading-relaxed text-[var(--ca-text-muted)]">
                                   {n.message}
                                 </p>
-                              </div>
+                              </button>
                             ))}
                           </div>
                         )}
@@ -702,12 +720,16 @@ export function ProfilePage() {
                               <div className="flex gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    navigator.clipboard?.writeText(sellerData.sellerCode);
-                                    setCopiedId(true);
-                                    window.setTimeout(() => setCopiedId(false), 2000);
+                                  onClick={async () => {
+                                    const ok = await copyTextToClipboard(sellerData.sellerCode);
+                                    if (ok) {
+                                      setCopiedId(true);
+                                      window.setTimeout(() => setCopiedId(false), 2000);
+                                    } else {
+                                      showToast(`Seller ID: ${sellerData.sellerCode}`, 'info');
+                                    }
                                   }}
-                                  className="inline-flex items-center gap-1 rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3 py-1.5 text-xs font-medium"
+                                  className="inline-flex min-h-[40px] items-center gap-1 rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3 py-1.5 text-xs font-medium"
                                 >
                                   {copiedId ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                                   {copiedId ? 'Copied' : 'Copy'}
@@ -877,10 +899,18 @@ export function ProfilePage() {
               <div
                 role="dialog"
                 aria-modal="true"
+                aria-labelledby="delete-account-heading"
+                onClick={() => !deletingAccount && setDeleteOpen(false)}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
               >
-                <div className="glass-panel max-w-md rounded-2xl p-6 shadow-xl">
-                  <h3 className="font-display text-2xl font-semibold text-red-600 dark:text-red-400">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="glass-panel max-w-md rounded-2xl p-6 shadow-xl"
+                >
+                  <h3
+                    id="delete-account-heading"
+                    className="font-display text-2xl font-semibold text-red-600 dark:text-red-400"
+                  >
                     Confirm Account Deletion
                   </h3>
                   <p className="mt-2 text-xs leading-relaxed text-[var(--ca-text-muted)]">
@@ -896,6 +926,7 @@ export function ProfilePage() {
                   <div className="mt-5 flex justify-end gap-2">
                     <button
                       type="button"
+                      disabled={deletingAccount}
                       onClick={() => setDeleteOpen(false)}
                       className="btn-press min-h-[44px] rounded-xl border border-[var(--ca-border)] px-4 py-2 text-xs font-medium"
                     >
@@ -904,6 +935,10 @@ export function ProfilePage() {
                     <CAProcessButton
                       type="button"
                       loading={deletingAccount}
+                      disabled={
+                        deletingAccount ||
+                        deleteConfirmEmail.trim().toLowerCase() !== user.email.toLowerCase()
+                      }
                       onClick={handleDeleteAccount}
                       className="rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white"
                     >

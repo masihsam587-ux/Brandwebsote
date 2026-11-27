@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { UserRole } from '../api/types';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../i18n';
 import { ProfilePageSkeleton } from './Skeletons';
 
 interface RouteGuardProps {
@@ -24,6 +25,7 @@ export function RouteGuard({
   fallbackDescription = 'Please sign in with an authorized account to access this view.',
 }: RouteGuardProps) {
   const { user, loading } = useAuth();
+  const { localize } = useLocale();
 
   if (loading) {
     return <ProfilePageSkeleton />;
@@ -38,8 +40,8 @@ export function RouteGuard({
           </h1>
           <p className="mt-2 text-sm text-[var(--ca-text-muted)]">{fallbackDescription}</p>
           <Link
-            to="/auth?redirect=/profile"
-            className="btn-press mt-6 inline-flex rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)]"
+            to={localize('/auth?redirect=/profile')}
+            className="btn-press mt-6 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)]"
           >
             Sign In / Register
           </Link>
@@ -59,8 +61,8 @@ export function RouteGuard({
             This dashboard is reserved for verified CA Seller accounts.
           </p>
           <Link
-            to="/shop"
-            className="btn-press mt-6 inline-flex rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)]"
+            to={localize('/shop')}
+            className="btn-press mt-6 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-6 py-3 text-sm font-semibold text-[var(--ca-bg)]"
           >
             Browse Catalog
           </Link>

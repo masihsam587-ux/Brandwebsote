@@ -1,13 +1,11 @@
+import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
-import dotenv from 'dotenv';
 import { pathToFileURL } from 'node:url';
 import { buildSitemapXml, fetchCatalogSnapshot } from '../src/services/catalogSnapshot';
 import { generateLlmsTxt, generateRobotsTxt, STORE_CONFIG } from '../src/services/siteConfig';
 import { getAllRegisteredSlugRedirects } from '../src/services/slugRedirects';
 import { injectSsrIntoTemplate } from '../src/services/ssrHtml';
-
-dotenv.config();
 
 type RenderRouteFn = typeof import('../src/entry-server').renderRoute;
 
@@ -51,7 +49,11 @@ export async function runPrerender(options?: {
     renderRoute: RenderRouteFn;
   };
   const snapshot = await fetchCatalogSnapshot();
-  const origin = (options?.origin || STORE_CONFIG.siteUrl).replace(/\/+$/, '');
+  const origin = (
+    options?.origin ||
+    process.env.VITE_SITE_URL?.trim() ||
+    STORE_CONFIG.siteUrl
+  ).replace(/\/+$/, '');
 
   const basePublicPaths = [
     '/',

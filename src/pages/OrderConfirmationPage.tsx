@@ -17,6 +17,7 @@ import { useLocale } from '../i18n';
 import { formatPKR } from '../utils/commerce';
 import { STORE_CONFIG } from '../services/siteConfig';
 import { getOrderReceipt } from '../services/orderReceipts';
+import { copyTextToClipboard } from '../utils/security';
 import { SeoHead } from '../components/SeoHead';
 import { CALoader } from '../components/CALoader';
 
@@ -65,12 +66,12 @@ export function OrderConfirmationPage() {
   const handleCopyId = async () => {
     const idToCopy = order?.id || orderIdParam;
     if (!idToCopy) return;
-    try {
-      await navigator.clipboard.writeText(idToCopy);
+    const ok = await copyTextToClipboard(idToCopy);
+    if (ok) {
       setCopied(true);
       showToast(`Copied Order ID ${idToCopy}`, 'success');
       window.setTimeout(() => setCopied(false), 1800);
-    } catch {
+    } else {
       showToast(`Order ID: ${idToCopy}`, 'info');
     }
   };
@@ -110,7 +111,7 @@ export function OrderConfirmationPage() {
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Link
-                to="/orders"
+                to={localize('/orders')}
                 className="btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]"
               >
                 <PackageCheck className="h-4 w-4" />
@@ -234,7 +235,7 @@ export function OrderConfirmationPage() {
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/orders"
+                to={localize('/orders')}
                 className="btn-press inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)] hover:opacity-90"
               >
                 <PackageCheck className="h-4 w-4" />

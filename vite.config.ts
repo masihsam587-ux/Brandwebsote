@@ -10,14 +10,34 @@ const rootDir = import.meta.dirname;
 export default defineConfig(({ mode, isSsrBuild }) => {
   const isProd = mode === 'production';
   const explicitBackend = process.env.VITE_BACKEND?.trim();
+  const explicitSiteUrl = (
+    process.env.VITE_SITE_URL ||
+    'https://cinematicartstore.netlify.app'
+  )
+    .trim()
+    .replace(/\/+$/, '');
+
+  const defineMap: Record<string, string> = {};
+  if (explicitBackend) {
+    defineMap['import.meta.env.VITE_BACKEND'] = JSON.stringify(explicitBackend);
+  }
+  if (process.env.VITE_SITE_URL?.trim()) {
+    defineMap['import.meta.env.VITE_SITE_URL'] = JSON.stringify(explicitSiteUrl);
+  }
 
   return {
-    define: explicitBackend
-      ? { 'import.meta.env.VITE_BACKEND': JSON.stringify(explicitBackend) }
-      : undefined,
+    define: Object.keys(defineMap).length > 0 ? defineMap : undefined,
     plugins: [
       react(),
       tailwindcss(),
+      !isSsrBuild
+        ? {
+            name: 'inject-site-url-in-html',
+            transformIndexHtml(html: string) {
+              return html.replace(/https:\/\/cinematicartstore\.netlify\.app/g, explicitSiteUrl);
+            },
+          }
+        : undefined,
       // Strip console.* and debugger statements from client production chunks
       isProd && !isSsrBuild
         ? {

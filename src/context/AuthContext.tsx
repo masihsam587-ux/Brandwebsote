@@ -3,6 +3,7 @@ import { authService, notificationService } from '../api';
 import { subscribeToUserRealtime } from '../api/adapters/supabaseAdapter';
 import { clearAllClientCaches, queryClient } from '../api/queryClient';
 import type { LoginPayload, SignupPayload, User } from '../api/types';
+import { clearOrderReceipts } from '../services/orderReceipts';
 
 interface AuthContextValue {
   user: User | null;
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextUser) {
       setUnreadNotifications(0);
       clearAllClientCaches();
+      clearOrderReceipts();
     }
   }, []);
 
@@ -95,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(null);
     setUnreadNotifications(0);
     clearAllClientCaches();
+    clearOrderReceipts();
   };
 
   return (

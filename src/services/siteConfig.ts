@@ -54,11 +54,9 @@ export const STORE_CONFIG: StoreBusinessConfig = {
   alternateName: 'CA Store Peshawar',
   siteUrl: (
     readEnv('VITE_SITE_URL') ||
-    readEnv('SITE_URL') ||
-    readEnv('APP_URL') ||
-    'https://cinematicarts.pk'
+    'https://cinematicartstore.netlify.app'
   ).replace(/\/+$/, ''),
-  email: 'masihsam587@gmail.com',
+  email: 'cinematicartsofficial.io@gmail.com',
   phoneDisplay: '03355329722',
   phoneE164: '+92-335-5329722',
   whatsappUrl: 'https://wa.me/923355329722',
@@ -92,7 +90,18 @@ export const STORE_CONFIG: StoreBusinessConfig = {
   },
 };
 
-export const PRIVATE_DISALLOW_PATHS = [
+export function getRuntimeOrigin(): string {
+  if (
+    typeof window !== 'undefined' &&
+    window.location.origin &&
+    !['localhost', '127.0.0.1'].includes(window.location.hostname)
+  ) {
+    return window.location.origin.replace(/\/+$/, '');
+  }
+  return STORE_CONFIG.siteUrl;
+}
+
+const PRIVATE_DISALLOW_PATHS = [
   '/admin',
   '/auth',
   '/profile',
@@ -108,7 +117,7 @@ export const PRIVATE_DISALLOW_PATHS = [
   '/api/',
 ] as const;
 
-export const AI_CRAWLER_AGENTS = [
+const AI_CRAWLER_AGENTS = [
   'GPTBot',
   'OAI-SearchBot',
   'ChatGPT-User',
@@ -119,7 +128,7 @@ export const AI_CRAWLER_AGENTS = [
   'Applebot-Extended',
 ] as const;
 
-export function isAiCrawlersAllowed(): boolean {
+function isAiCrawlersAllowed(): boolean {
   const raw = readEnv('AI_CRAWLERS_ALLOW') || readEnv('VITE_AI_CRAWLERS_ALLOW');
   if (!raw) return true;
   return raw.toLowerCase() !== 'false' && raw !== '0' && raw.toLowerCase() !== 'no';

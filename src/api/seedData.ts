@@ -230,7 +230,7 @@ export const DEFAULT_TERMS_POLICY = {
       body: 'Registered sellers receive a unique referral code (format CA-XXXXXX). Active sellers earn a 10% commission on the total value of each referred order once the order status reaches Complete. Cancelled or rejected orders do not accrue commission.',
     },
   ],
-  footerNote: 'Questions? Email masihsam587@gmail.com or call 03355329722.',
+  footerNote: 'Questions? Email cinematicartsofficial.io@gmail.com or call 03355329722.',
   updatedAt: '2026-11-22T00:00:00.000Z',
 };
 

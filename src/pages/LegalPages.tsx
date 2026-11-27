@@ -6,6 +6,8 @@ import type { TermsPolicyDocument } from '../api/types';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { SeoHead } from '../components/SeoHead';
 import { useLocale } from '../i18n';
+import { buildBreadcrumbJsonLd } from '../services/seoService';
+import { getRuntimeOrigin } from '../services/siteConfig';
 
 export function TermsPage() {
   const { t, locale, localize } = useLocale();
@@ -14,6 +16,7 @@ export function TermsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadTerms = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
       const live = await productService.getTermsPolicy();
@@ -29,6 +32,8 @@ export function TermsPage() {
     loadTerms();
   }, [loadTerms]);
 
+  const origin = getRuntimeOrigin();
+
   return (
     <>
       <SeoHead
@@ -40,6 +45,15 @@ export function TermsPage() {
         description="Read Cinematic Arts terms of service, 7-day exchanges, PKR installment financing rules, and 10% seller referral commission."
         canonicalPath={localize('/terms')}
         locale={locale}
+        jsonLd={[
+          buildBreadcrumbJsonLd(
+            [
+              { name: t.nav.home, path: localize('/') },
+              { name: t.nav.terms, path: localize('/terms') },
+            ],
+            origin
+          ),
+        ]}
       />
       <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
         <Breadcrumbs
@@ -93,7 +107,7 @@ export function TermsPage() {
               <footer className="pt-4 text-xs text-[var(--ca-text-muted)] flex flex-wrap items-center justify-between gap-2">
                 <span>
                   {doc.footerNote ||
-                    'Questions? Email masihsam587@gmail.com or call 03355329722.'}
+                    'Questions? Email cinematicartsofficial.io@gmail.com or call 03355329722.'}
                 </span>
                 <span className="font-mono-nums">
                   Updated {doc.updatedAt.slice(0, 10)}
@@ -109,6 +123,8 @@ export function TermsPage() {
 
 export function PrivacyPage() {
   const { t, locale, localize } = useLocale();
+  const origin = getRuntimeOrigin();
+
   return (
     <>
       <SeoHead
@@ -120,6 +136,15 @@ export function PrivacyPage() {
         description="How Cinematic Arts handles customer delivery details, seller verification records, and account deletion rights."
         canonicalPath={localize('/privacy')}
         locale={locale}
+        jsonLd={[
+          buildBreadcrumbJsonLd(
+            [
+              { name: t.nav.home, path: localize('/') },
+              { name: t.nav.privacy, path: localize('/privacy') },
+            ],
+            origin
+          ),
+        ]}
       />
       <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-12">
         <Breadcrumbs

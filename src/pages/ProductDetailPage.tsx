@@ -1,21 +1,62 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Heart, Minus, Plus, Ruler, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Copy, Expand, Heart, MessageCircle, Minus, Plus, Ruler, Share2, ShoppingBag } from 'lucide-react';
 import { productService } from '../api';
 import { calculateInstallmentPlan, deriveProductStockStatus, formatPKR } from '../utils/commerce';
+import { getStockPresentation } from '../utils/stockPresentation';
+import { copyTextToClipboard } from '../utils/security';
 import { urlSlugSchema } from '../utils/validation';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { ImageLightbox } from '../components/ImageLightbox';
 import { ProductCard, ResilientImage } from '../components/ProductCard';
 import { ProductDetailSkeleton, FriendlyErrorState } from '../components/Skeletons';
 import { CAProcessButton } from '../components/CALoader';
 import { SeoHead } from '../components/SeoHead';
 import { useLocale } from '../i18n';
-import { buildProductSeoConfig, deriveProductSku } from '../services/seoService';
-import { STORE_CONFIG } from '../services/siteConfig';
+import { buildProductSeoConfig, deriveProductSku, resolveCanonicalUrl } from '../services/seoService';
+import { getRuntimeOrigin, STORE_CONFIG } from '../services/siteConfig';
 import { resolveProductSlugRedirect } from '../services/slugRedirects';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
+
+function ProductNotFoundView({
+  title,
+  description,
+  canonicalPath,
+  locale,
+  ctaLabel,
+  shopPath,
+}: {
+  title: string;
+  description: string;
+  canonicalPath: string;
+  locale: 'en' | 'ur';
+  ctaLabel: string;
+  shopPath: string;
+}) {
+  return (
+    <>
+      <SeoHead
+        title={title}
+        description={description}
+        canonicalPath={canonicalPath}
+        locale={locale}
+        noIndex
+      />
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <h1 className="font-display text-3xl font-semibold">{title.split(' — ')[0]}</h1>
+        <p className="mt-2 text-sm text-[var(--ca-text-muted)]">{description}</p>
+        <Link
+          to={shopPath}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]"
+        >
+          {ctaLabel}
+        </Link>
+      </div>
+    </>
+  );
+}
 
 export function ProductDetailPage() {
   const { slug = '' } = useParams<{ slug: string }>();
@@ -54,11 +95,35 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [addedStatus, setAddedStatus] = useState<'idle' | 'success'>('idle');
   const [heartPopKey, setHeartPopKey] = useState(0);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [showShareFallbacks, setShowShareFallbacks] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [shareOrigin, setShareOrigin] = useState(STORE_CONFIG.siteUrl);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const galleryTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    setCanNativeShare(
+      typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+    );
+    if (
+      typeof window !== 'undefined' &&
+      window.location.origin &&
+      !['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ) {
+      setShareOrigin(window.location.origin);
+    }
+  }, []);
 
   useEffect(() => {
     if (product) {
       setSelectedImage(product.coverImage);
       setSelectedSize(product.sizes?.[0] || 'One Size');
+      setQuantity(1);
+      setAddedStatus('idle');
+      setShowShareFallbacks(false);
+      setCopiedLink(false);
+      setLightboxOpen(false);
     }
   }, [product]);
 
@@ -95,27 +160,14 @@ export function ProductDetailPage() {
 
   if (!slugValid) {
     return (
-      <>
-        <SeoHead
-          title={`${t.product.notFoundTitle} — ${t.brand}`}
-          description={t.product.notFoundDesc}
-          canonicalPath={localize('/shop')}
-          locale={locale}
-          noIndex
-        />
-        <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-          <h1 className="font-display text-3xl font-semibold">{t.product.notFoundTitle}</h1>
-          <p className="mt-2 text-sm text-[var(--ca-text-muted)]">
-            {t.product.notFoundDesc}
-          </p>
-          <Link
-            to={localize('/shop')}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]"
-          >
-            {t.product.backToCollection}
-          </Link>
-        </div>
-      </>
+      <ProductNotFoundView
+        title={`${t.product.notFoundTitle} — ${t.brand}`}
+        description={t.product.notFoundDesc}
+        canonicalPath={localize('/shop')}
+        locale={locale}
+        ctaLabel={t.product.backToCollection}
+        shopPath={localize('/shop')}
+      />
     );
   }
 
@@ -147,33 +199,19 @@ export function ProductDetailPage() {
 
   if (!product) {
     return (
-      <>
-        <SeoHead
-          title={`${t.product.notFoundTitle} — ${t.brand}`}
-          description={t.product.notFoundDesc}
-          canonicalPath={localize(slug ? `/product/${slug}` : '/shop')}
-          locale={locale}
-          noIndex
-        />
-        <div className="mx-auto max-w-2xl px-4 py-20 text-center">
-          <h1 className="font-display text-3xl font-semibold">{t.product.notFoundTitle}</h1>
-          <p className="mt-2 text-sm text-[var(--ca-text-muted)]">
-            {t.product.notFoundDesc}
-          </p>
-          <Link
-            to={localize('/shop')}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]"
-          >
-            {t.product.backToCollection}
-          </Link>
-        </div>
-      </>
+      <ProductNotFoundView
+        title={`${t.product.notFoundTitle} — ${t.brand}`}
+        description={t.product.notFoundDesc}
+        canonicalPath={localize(slug ? `/product/${slug}` : '/shop')}
+        locale={locale}
+        ctaLabel={t.product.backToCollection}
+        shopPath={localize('/shop')}
+      />
     );
   }
 
   const allImages = [product.coverImage, ...(product.extraImages || [])];
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl;
+  const origin = getRuntimeOrigin();
   const productSeo = buildProductSeoConfig(product, origin, locale);
   const categorySlug = product.categoryId.replace(/^cat-/i, '');
   const sku = deriveProductSku(product);
@@ -183,20 +221,44 @@ export function ProductDetailPage() {
     typeof stockStatus.remainingUnits === 'number' && stockStatus.remainingUnits > 0
       ? Math.min(20, stockStatus.remainingUnits)
       : 20;
-  const stockBadgeLabel =
-    stockStatus.level === 'out_of_stock'
-      ? t.product.outOfStock
-      : stockStatus.level === 'low_stock'
-      ? typeof stockStatus.remainingUnits === 'number'
-        ? `${t.product.lowStock} (${stockStatus.remainingUnits} left)`
-        : t.product.lowStock
-      : t.product.inStock;
-  const stockBadgeClasses =
-    stockStatus.level === 'out_of_stock'
-      ? 'bg-red-500/12 text-red-700 dark:text-red-300'
-      : stockStatus.level === 'low_stock'
-      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
-      : 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300';
+  const { label: stockBadgeLabel, badgeClass: stockBadgeClasses } = getStockPresentation(
+    stockStatus,
+    t.product,
+    true
+  );
+
+  const shareUrl = resolveCanonicalUrl(localize(`/product/${product.slug}`), shareOrigin);
+  const shareShortText = `${product.title} — ${formatPKR(product.price)} at ${STORE_CONFIG.shortName}`;
+  const whatsappShareHref = `https://wa.me/?text=${encodeURIComponent(`${shareShortText}\n${shareUrl}`)}`;
+
+  const handleCopyLink = async () => {
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
+      setCopiedLink(true);
+      showToast(t.product.linkCopied, 'success');
+      window.setTimeout(() => setCopiedLink(false), 1800);
+    } else {
+      showToast('Could not copy link. You can copy it from the address bar.', 'info');
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: product.title,
+          text: shareShortText,
+          url: shareUrl,
+        });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+    setShowShareFallbacks((prev) => !prev);
+  };
 
   return (
     <>
@@ -224,16 +286,27 @@ export function ProductDetailPage() {
           {/* Gallery */}
           <div className="space-y-3 lg:col-span-7">
             <div className="glass-panel overflow-hidden rounded-2xl p-2 sm:p-3">
-              <div className="aspect-[4/3] overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)]">
+              <button
+                ref={galleryTriggerRef}
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                data-testid="pdp-lightbox-trigger"
+                aria-label={`View full-screen photos of ${product.title}`}
+                className="group relative block w-full aspect-[4/3] overflow-hidden rounded-xl bg-[var(--ca-surface-subtle)] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-accent)]"
+              >
                 <ResilientImage
                   src={selectedImage || product.coverImage}
                   alt={`${product.title} — ${product.categoryName}`}
                   width={800}
                   height={600}
                   priority
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 />
-              </div>
+                <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1.5 rounded-lg bg-black/65 px-2.5 py-1.5 text-[11px] font-medium text-white opacity-90 transition-opacity group-hover:opacity-100">
+                  <Expand className="h-3.5 w-3.5" />
+                  <span>{allImages.length > 1 ? `1 / ${allImages.length}` : 'Zoom'}</span>
+                </span>
+              </button>
             </div>
             {allImages.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-1">
@@ -363,10 +436,10 @@ export function ProductDetailPage() {
                   <div className="mt-1.5 inline-flex items-center rounded-xl border border-[var(--ca-border)]">
                     <button
                       type="button"
-                      disabled={!stockStatus.isAvailable}
+                      disabled={!stockStatus.isAvailable || quantity <= 1}
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                       aria-label="Decrease quantity"
-                      className="p-2 disabled:opacity-40"
+                      className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center disabled:opacity-40"
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
@@ -375,10 +448,10 @@ export function ProductDetailPage() {
                     </span>
                     <button
                       type="button"
-                      disabled={!stockStatus.isAvailable}
+                      disabled={!stockStatus.isAvailable || quantity >= maxQuantity}
                       onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                       aria-label="Increase quantity"
-                      className="p-2 disabled:opacity-40"
+                      className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center disabled:opacity-40"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
@@ -506,6 +579,46 @@ export function ProductDetailPage() {
                   {stockStatus.isAvailable ? t.product.buyNow : t.product.outOfStock}
                 </button>
               </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="pdp-share-actions">
+                {canNativeShare && (
+                  <button
+                    type="button"
+                    onClick={handleNativeShare}
+                    className="btn-press inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-[10px] border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    {t.product.share}
+                  </button>
+                )}
+
+                {(!canNativeShare || showShareFallbacks) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="btn-press inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-[10px] border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"
+                    >
+                      {copiedLink ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                      {copiedLink ? t.product.linkCopied : t.product.copyLink}
+                    </button>
+
+                    <a
+                      href={whatsappShareHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-press inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-[10px] border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2 text-xs font-medium text-[var(--ca-text)] hover:bg-[var(--ca-surface-subtle)]"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      {t.product.shareWhatsApp}
+                    </a>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -524,6 +637,16 @@ export function ProductDetailPage() {
           </div>
         )}
       </section>
+
+      <ImageLightbox
+        open={lightboxOpen}
+        images={allImages}
+        initialIndex={Math.max(0, allImages.indexOf(selectedImage || product.coverImage))}
+        title={product.title}
+        triggerRef={galleryTriggerRef}
+        isRtl={isRtl}
+        onClose={() => setLightboxOpen(false)}
+      />
     </>
   );
 }

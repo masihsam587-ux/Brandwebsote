@@ -1,4 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient.js';
+import { getRuntimeOrigin } from '../services/siteConfig';
 import { DEFAULT_TERMS_POLICY } from './seedData';
 import {
   calculateAdminAnalytics,
@@ -171,9 +172,27 @@ export const supabaseAdapter = {
         }
       }
 
-      const profile = await fetchProfileRow(sb, data.user.id);
+      let profile = await fetchProfileRow(sb, data.user.id);
       if (!profile) {
         throw new Error('Profile record not found for this account.');
+      }
+      const metaCode = data.user.user_metadata?.seller_code;
+      if (
+        !profile.seller_code &&
+        metaCode &&
+        (profile.role === 'seller' || data.user.user_metadata?.role === 'seller')
+      ) {
+        try {
+          const { data: patched } = await sb
+            .from('profiles')
+            .update({ seller_code: metaCode })
+            .eq('id', data.user.id)
+            .select('id,email,full_name,role,seller_code,phone,whatsapp,address,postal_code,father_name,avatar_url,created_at')
+            .maybeSingle();
+          if (patched) profile = patched;
+        } catch {
+          // Keep fetched profile even if RLS blocks self-update of seller_code
+        }
       }
       return {
         user: mapDbProfile(profile),
@@ -208,10 +227,7 @@ export const supabaseAdapter = {
         password: payload.password,
         options: {
           data: userMeta,
-          emailRedirectTo:
-            typeof globalThis.window !== 'undefined'
-              ? `${globalThis.window.location.origin}/auth`
-              : undefined,
+          emailRedirectTo: `${getRuntimeOrigin()}/auth`,
         },
       });
       if (error || !data.user) {
@@ -284,15 +300,19 @@ export const supabaseAdapter = {
     async requestPasswordReset(email) {
       const sb = getSupabase();
       const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo:
-          typeof globalThis.window !== 'undefined'
-            ? `${globalThis.window.location.origin}/auth`
-            : undefined,
+        redirectTo: `${getRuntimeOrigin()}/auth?type=recovery`,
       });
       if (error) throw toFriendlySupabaseError(error, 'Password reset failed.');
       return {
         message: 'If an account matches that address, reset instructions were dispatched.',
       };
+    },
+
+    async updatePassword(newPassword) {
+      const sb = getSupabase();
+      const { error } = await sb.auth.updateUser({ password: newPassword });
+      if (error) throw toFriendlySupabaseError(error, 'Could not update password.');
+      return { message: 'Your password has been updated. You are now signed in.' };
     },
 
     async logout() {
@@ -379,6 +399,17 @@ export const supabaseAdapter = {
         return { valid: false };
       }
       const sb = getSupabase();
+      const { data: userData } = await sb.auth.getUser();
+      if (userData?.user) {
+        const metaCode = String(userData.user.user_metadata?.seller_code || '').toUpperCase();
+        if (metaCode && metaCode === clean) {
+          return { valid: false, selfReferral: true };
+        }
+        const profile = await fetchProfileRow(sb, userData.user.id).catch(() => null);
+        if (profile?.seller_code && String(profile.seller_code).toUpperCase() === clean) {
+          return { valid: false, selfReferral: true };
+        }
+      }
       const { data, error } = await sb.rpc('check_referral', { p_code: clean });
       if (error) {
         return { valid: false };
@@ -404,8 +435,20 @@ export const supabaseAdapter = {
       if (payMethod === 'installment' && !referralCode) {
         throw new Error('Installment orders require an active CA Seller Referral ID.');
       }
+      if (referralCode) {
+        const { data: userData } = await sb.auth.getUser();
+        if (userData?.user) {
+          const metaCode = String(userData.user.user_metadata?.seller_code || '').toUpperCase();
+          const profile = await fetchProfileRow(sb, userData.user.id).catch(() => null);
+          const ownCode = (profile?.seller_code ? String(profile.seller_code).toUpperCase() : '') || metaCode;
+          if (ownCode && ownCode === referralCode) {
+            throw new Error('You cannot use your own Seller Referral ID.');
+          }
+        }
+      }
 
       const createdOrderIds = [];
+      const succeededItems = [];
       for (let i = 0; i < payload.items.length; i += 1) {
         const item = payload.items[i];
         const idemKey = deriveItemIdempotencyKey(
@@ -430,9 +473,19 @@ export const supabaseAdapter = {
           p_idem: idemKey,
         });
         if (error || !orderId) {
-          throw toFriendlySupabaseError(error, 'Could not place order.');
+          const baseErr = toFriendlySupabaseError(error, 'Could not place order.');
+          if (createdOrderIds.length > 0) {
+            const partialErr = new Error(
+              `${createdOrderIds.length} of ${payload.items.length} item(s) were placed (${createdOrderIds.join(', ')}), but "${item.title}" failed: ${baseErr.message}`
+            );
+            partialErr.partialCreatedIds = createdOrderIds;
+            partialErr.succeededItems = succeededItems;
+            throw partialErr;
+          }
+          throw baseErr;
         }
         createdOrderIds.push(String(orderId));
+        succeededItems.push(item);
       }
 
       const primaryId = createdOrderIds[0];
@@ -443,7 +496,10 @@ export const supabaseAdapter = {
         .maybeSingle();
 
       if (fetchErr || !row) {
-        // Fallback minimal shell using authoritative server ID if RLS restricts immediate read
+        const fallbackSubtotal = payload.items.reduce(
+          (sum, it) => sum + Math.max(0, Number(it.unitPrice) || 0) * Math.max(1, Math.floor(Number(it.quantity) || 1)),
+          0
+        );
         return {
           id: primaryId,
           userId: 'current',
@@ -461,7 +517,7 @@ export const supabaseAdapter = {
           advanceAmount: 0,
           advancePaid: false,
           monthlyAmount: 0,
-          totalAmount: 0,
+          totalAmount: fallbackSubtotal,
           installmentSchedule: [],
           referralCode: referralCode || undefined,
           commissionAmount: 0,
@@ -1225,12 +1281,17 @@ export const supabaseAdapter = {
     async saveInstallmentPlans(_adminToken, plans) {
       const sb = getSupabase();
       await requireAdminUser(sb);
-      const payload = (plans || []).map((pl) => ({
-        months: Math.max(1, Math.round(Number(pl.months))),
-        markup_percent: Math.max(0, Number(pl.markupPercent)),
-        advance_percent: Math.max(0, Math.min(90, Number(pl.advancePercent))),
-        is_active: Boolean(pl.active),
-      }));
+      const payload = (plans || []).map((pl) => {
+        const monthsNum = Number(pl.months);
+        const markupNum = Number(pl.markupPercent);
+        const advanceNum = Number(pl.advancePercent);
+        return {
+          months: Number.isFinite(monthsNum) ? Math.max(1, Math.min(36, Math.round(monthsNum))) : 2,
+          markup_percent: Number.isFinite(markupNum) ? Math.max(0, Math.min(200, markupNum)) : 15,
+          advance_percent: Number.isFinite(advanceNum) ? Math.max(0, Math.min(90, advanceNum)) : 0,
+          is_active: Boolean(pl.active),
+        };
+      });
 
       const { error } = await sb.from('plans').upsert(payload, { onConflict: 'months' });
       if (error) throw toFriendlySupabaseError(error, 'Could not update installment plans.');

@@ -46,7 +46,7 @@ export class ApiClientError extends Error {
 }
 
 const DEFAULT_TIMEOUT_MS = 12_000;
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const BASE_URL = ((import.meta.env && import.meta.env.VITE_API_BASE_URL) || '').replace(/\/$/, '');
 
 function readCookie(name: string): string | null {
   if (typeof document === 'undefined' || !document.cookie) return null;

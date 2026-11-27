@@ -51,7 +51,17 @@ test('mapDbProduct maps schema fields, images array, and admin product_costs', (
   assert.deepEqual(prod.extraImages, ['https://cdn.example/angle2.webp']);
   assert.deepEqual(prod.sizes, ['S', 'M', 'L', 'XL']);
   assert.equal(prod.inStock, true);
+  assert.equal(prod.hasOwnCoverImage, true);
   assert.equal(urlSlugSchema.safeParse(prod.slug).success, true);
+
+  const prodWithoutImg = mapDbProduct({
+    id: '22222222-2222-3333-4444-555555555555',
+    category_id: 'cat-1',
+    title: 'Plain Cap',
+    price: 900,
+    cover_image: null,
+  });
+  assert.equal(prodWithoutImg.hasOwnCoverImage, false);
 });
 
 test('mapDbPlan and parsePlanMonths round-trip plan months', () => {

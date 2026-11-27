@@ -96,6 +96,10 @@ export interface TranslationDictionary {
     relatedTitle: string;
     notFoundTitle: string;
     notFoundDesc: string;
+    share: string;
+    copyLink: string;
+    linkCopied: string;
+    shareWhatsApp: string;
   };
   about: {
     heading: string;
@@ -273,6 +277,10 @@ export const enDictionary: TranslationDictionary = {
     relatedTitle: 'Related Items',
     notFoundTitle: 'Piece Not Found',
     notFoundDesc: 'This product link is invalid or the item has been archived.',
+    share: 'Share',
+    copyLink: 'Copy link',
+    linkCopied: 'Link copied',
+    shareWhatsApp: 'WhatsApp',
   },
   about: {
     heading: 'About Cinematic Arts (CA)',

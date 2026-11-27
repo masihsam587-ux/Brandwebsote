@@ -33,7 +33,7 @@ export function buildProductSlug(title: string, id: string): string {
   return combined || 'piece';
 }
 
-export function defaultSizesForCategory(categoryName: string): string[] {
+function defaultSizesForCategory(categoryName: string): string[] {
   const lower = categoryName.toLowerCase();
   if (lower.includes('unstitched')) return ['3-Piece Unstitched'];
   if (lower.includes('trouser')) return ['26', '28', '30', '32'];
@@ -71,7 +71,8 @@ export function mapDbProduct(
     60
   );
 
-  const coverImage = row.cover_image ? String(row.cover_image) : DEFAULT_FALLBACK_IMAGE;
+  const rawCover = typeof row.cover_image === 'string' ? row.cover_image.trim() : '';
+  const coverImage = rawCover || DEFAULT_FALLBACK_IMAGE;
   const rawImages = Array.isArray(row.images)
     ? row.images.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
     : [];
@@ -101,6 +102,7 @@ export function mapDbProduct(
     categoryId,
     categoryName,
     coverImage,
+    hasOwnCoverImage: Boolean(rawCover),
     extraImages,
     sizes: defaultSizesForCategory(categoryName),
     inStock: row.is_active !== false,

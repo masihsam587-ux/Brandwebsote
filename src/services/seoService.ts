@@ -9,12 +9,17 @@ import {
 } from '../i18n';
 import { formatPKR } from '../utils/commerce';
 import { sanitizePlainText } from '../utils/security';
-import { STORE_CONFIG } from './siteConfig';
+import { getRuntimeOrigin, STORE_CONFIG } from './siteConfig';
 
-export const SITE_NAME = STORE_CONFIG.brandName;
+const SITE_NAME = STORE_CONFIG.brandName;
+const OG_SITE_NAME = STORE_CONFIG.shortName;
 export const MAX_TITLE_LENGTH = 60;
 export const MAX_DESCRIPTION_LENGTH = 155;
-export const DEFAULT_OG_IMAGE_PATH = '/src/assets/images/womens_unstitched_suit_1795333234539.jpg';
+const DEFAULT_OG_IMAGE_PATH = '/og-default.jpg';
+const DEFAULT_OG_IMAGE_WIDTH = 1200;
+const DEFAULT_OG_IMAGE_HEIGHT = 630;
+const DEFAULT_OG_IMAGE_ALT =
+  'Cinematic Arts (CA) — Peshawar Clothing & PKR Installments';
 
 export interface ProductSeoMeta {
   priceAmount: number;
@@ -35,6 +40,9 @@ export interface SeoHeadConfig {
   description: string;
   canonicalPath?: string;
   image?: string;
+  imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   type?: 'website' | 'product';
   noIndex?: boolean;
   locale?: Locale;
@@ -72,7 +80,7 @@ export interface HeadDocumentLike {
 }
 
 const DEFAULT_HOME_DESCRIPTION_EN =
-  "Shop women's unstitched suits, boys' trousers, jackets, hoodies, shirts, t-shirts & accessories in PKR. Cash on Delivery & monthly plans.";
+  'Handpicked clothing from Peshawar, shipped across Pakistan. Shop in PKR with cash on delivery or flexible monthly installments.';
 const DEFAULT_HOME_DESCRIPTION_UR =
   'سنیماٹک آرٹس پشاور سے خواتین کے ان سٹچڈ سوٹ، لڑکوں کی ٹراؤزر، جیکٹس، ہڈیز اور شرٹس PKR میں خریدیں۔ کیش آن ڈیلیوری اور اقساط دستیاب ہیں۔';
 
@@ -120,10 +128,7 @@ export function resolveCanonicalUrl(
   runtimeOrigin?: string,
   runtimeHref?: string
 ): string {
-  const origin = (
-    runtimeOrigin ??
-    (typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl)
-  ).replace(/\/+$/, '');
+  const origin = (runtimeOrigin ?? getRuntimeOrigin()).replace(/\/+$/, '');
 
   const raw = (canonicalPath || '').trim();
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
@@ -157,10 +162,7 @@ export function resolveCanonicalUrl(
 }
 
 export function resolveAbsoluteImageUrl(image?: string, runtimeOrigin?: string): string {
-  const origin = (
-    runtimeOrigin ??
-    (typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl)
-  ).replace(/\/+$/, '');
+  const origin = (runtimeOrigin ?? getRuntimeOrigin()).replace(/\/+$/, '');
 
   const candidate = (image || '').trim() || DEFAULT_OG_IMAGE_PATH;
   if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
@@ -186,7 +188,10 @@ export function deriveProductSku(product: Pick<Product, 'id' | 'slug'>): string 
   const raw = (product.id || product.slug || 'ITEM')
     .replace(/[^a-zA-Z0-9-]+/g, '')
     .toUpperCase();
-  return raw.startsWith('CA-') ? raw : `CA-${raw}`;
+  const body = (raw.startsWith('CA-') ? raw.slice(3) : raw)
+    .slice(0, 8)
+    .replace(/-+$/, '');
+  return `CA-${body || 'ITEM'}`;
 }
 
 export function buildOrganizationJsonLd(origin: string): Record<string, unknown> {
@@ -311,16 +316,19 @@ export function buildProductSeoConfig(
   runtimeOrigin?: string,
   locale: Locale = 'en'
 ): SeoHeadConfig {
-  const origin = (
-    runtimeOrigin ??
-    (typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl)
-  ).replace(/\/+$/, '');
+  const origin = (runtimeOrigin ?? getRuntimeOrigin()).replace(/\/+$/, '');
 
   const canonicalPath = localizePath(`/product/${product.slug}`, locale);
   const canonicalUrl = resolveCanonicalUrl(canonicalPath, origin);
-  const allImages = [product.coverImage, ...(product.extraImages || [])]
-    .filter(Boolean)
-    .map((img) => resolveAbsoluteImageUrl(img, origin));
+  const hasOwnCover =
+    product.hasOwnCoverImage !== false &&
+    Boolean(product.coverImage && product.coverImage.trim());
+  const primarySeoImage = hasOwnCover ? product.coverImage.trim() : DEFAULT_OG_IMAGE_PATH;
+  const allImages = (
+    hasOwnCover
+      ? [product.coverImage, ...(product.extraImages || [])].filter(Boolean)
+      : [DEFAULT_OG_IMAGE_PATH]
+  ).map((img) => resolveAbsoluteImageUrl(img, origin));
   const sku = deriveProductSku(product);
 
   const fallbackDesc =
@@ -374,7 +382,10 @@ export function buildProductSeoConfig(
     title,
     description,
     canonicalPath,
-    image: product.coverImage,
+    image: primarySeoImage,
+    imageAlt: hasOwnCover ? `${product.title} — ${product.categoryName}` : DEFAULT_OG_IMAGE_ALT,
+    imageWidth: hasOwnCover ? undefined : DEFAULT_OG_IMAGE_WIDTH,
+    imageHeight: hasOwnCover ? undefined : DEFAULT_OG_IMAGE_HEIGHT,
     type: 'product',
     noIndex: false,
     locale,
@@ -395,10 +406,7 @@ export function buildCategorySeoConfig(
   runtimeOrigin?: string,
   locale: Locale = 'en'
 ): SeoHeadConfig {
-  const origin = (
-    runtimeOrigin ??
-    (typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl)
-  ).replace(/\/+$/, '');
+  const origin = (runtimeOrigin ?? getRuntimeOrigin()).replace(/\/+$/, '');
   const dict = getDictionary(locale);
   const canonicalPath = localizePath(`/category/${category.slug}`, locale);
   const title =
@@ -407,6 +415,8 @@ export function buildCategorySeoConfig(
       : normalizeMetaTitle(`${category.name} in Pakistan — ${STORE_CONFIG.shortName}`);
   const intro = dict.category.intros[category.slug] || category.description || dict.category.fallbackIntro(category.name);
   const description = normalizeMetaDescription(intro);
+  const hasCategoryImage = Boolean(category.image && category.image.trim());
+  const categoryImage = hasCategoryImage ? category.image.trim() : DEFAULT_OG_IMAGE_PATH;
 
   const breadcrumbs: BreadcrumbItem[] = [
     { name: dict.nav.home, path: localizePath('/', locale) },
@@ -418,7 +428,10 @@ export function buildCategorySeoConfig(
     title,
     description,
     canonicalPath,
-    image: category.image,
+    image: categoryImage,
+    imageAlt: hasCategoryImage ? `${category.name} — ${STORE_CONFIG.shortName}` : DEFAULT_OG_IMAGE_ALT,
+    imageWidth: hasCategoryImage ? undefined : DEFAULT_OG_IMAGE_WIDTH,
+    imageHeight: hasCategoryImage ? undefined : DEFAULT_OG_IMAGE_HEIGHT,
     type: 'website',
     noIndex: false,
     locale,
@@ -445,7 +458,7 @@ export function getRouteSeoConfig(
       title:
         locale === 'ur'
           ? normalizeMetaTitle('سنیماٹک آرٹس — ملبوسات، ان سٹچڈ سوٹ اور اقساط')
-          : normalizeMetaTitle('Cinematic Arts (CA) — Clothing & PKR Installments'),
+          : normalizeMetaTitle('Cinematic Arts — Clothing & PKR Installments'),
       description:
         locale === 'ur'
           ? normalizeMetaDescription(DEFAULT_HOME_DESCRIPTION_UR, DEFAULT_HOME_DESCRIPTION_UR)
@@ -854,6 +867,32 @@ const PRODUCT_OG_META_KEYS = [
   'product:category',
 ] as const;
 
+function resolveSeoImageMeta(
+  config: SeoHeadConfig,
+  normalizedTitle: string,
+  runtimeOrigin?: string
+): {
+  imageUrl: string;
+  imageAlt: string;
+  imageWidth?: number;
+  imageHeight?: number;
+} {
+  const rawCandidate = (config.image || '').trim();
+  const usesDefaultCard = !rawCandidate || rawCandidate === DEFAULT_OG_IMAGE_PATH;
+  const imageUrl = resolveAbsoluteImageUrl(
+    usesDefaultCard ? DEFAULT_OG_IMAGE_PATH : rawCandidate,
+    runtimeOrigin
+  );
+  const imageAlt =
+    sanitizePlainText(
+      config.imageAlt || (usesDefaultCard ? DEFAULT_OG_IMAGE_ALT : normalizedTitle),
+      200
+    ) || DEFAULT_OG_IMAGE_ALT;
+  const imageWidth = config.imageWidth ?? (usesDefaultCard ? DEFAULT_OG_IMAGE_WIDTH : undefined);
+  const imageHeight = config.imageHeight ?? (usesDefaultCard ? DEFAULT_OG_IMAGE_HEIGHT : undefined);
+  return { imageUrl, imageAlt, imageWidth, imageHeight };
+}
+
 export function updateDocumentHead(
   config: SeoHeadConfig,
   doc: HeadDocumentLike | undefined = typeof document !== 'undefined'
@@ -870,7 +909,11 @@ export function updateDocumentHead(
     MAX_DESCRIPTION_LENGTH
   );
   const canonicalUrl = resolveCanonicalUrl(config.canonicalPath, runtimeOrigin, runtimeHref);
-  const imageUrl = resolveAbsoluteImageUrl(config.image, runtimeOrigin);
+  const { imageUrl, imageAlt, imageWidth, imageHeight } = resolveSeoImageMeta(
+    config,
+    normalizedTitle,
+    runtimeOrigin
+  );
   const ogType = config.type ?? 'website';
   const robotsValue = config.noIndex ? 'noindex,nofollow' : 'index,follow';
 
@@ -906,7 +949,7 @@ export function updateDocumentHead(
     upsertMetaTag(doc, 'name', 'msvalidate.01', STORE_CONFIG.verification.bing);
   }
 
-  upsertMetaTag(doc, 'property', 'og:site_name', SITE_NAME);
+  upsertMetaTag(doc, 'property', 'og:site_name', OG_SITE_NAME);
   upsertMetaTag(doc, 'property', 'og:locale', locale === 'ur' ? 'ur_PK' : 'en_PK');
   upsertMetaTag(
     doc,
@@ -919,11 +962,20 @@ export function updateDocumentHead(
   upsertMetaTag(doc, 'property', 'og:type', ogType);
   upsertMetaTag(doc, 'property', 'og:url', canonicalUrl);
   upsertMetaTag(doc, 'property', 'og:image', imageUrl);
+  if (imageWidth && imageHeight) {
+    upsertMetaTag(doc, 'property', 'og:image:width', String(imageWidth));
+    upsertMetaTag(doc, 'property', 'og:image:height', String(imageHeight));
+  } else {
+    removeMetaTag(doc, 'property', 'og:image:width');
+    removeMetaTag(doc, 'property', 'og:image:height');
+  }
+  upsertMetaTag(doc, 'property', 'og:image:alt', imageAlt);
 
   upsertMetaTag(doc, 'name', 'twitter:card', 'summary_large_image');
   upsertMetaTag(doc, 'name', 'twitter:title', normalizedTitle);
   upsertMetaTag(doc, 'name', 'twitter:description', normalizedDescription);
   upsertMetaTag(doc, 'name', 'twitter:image', imageUrl);
+  upsertMetaTag(doc, 'name', 'twitter:image:alt', imageAlt);
 
   if (ogType === 'product' && config.productMeta) {
     upsertMetaTag(doc, 'property', 'product:price:amount', String(config.productMeta.priceAmount));
@@ -987,6 +1039,7 @@ function escapeHtmlAttr(val: string): string {
   return String(val)
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
@@ -994,6 +1047,7 @@ function escapeHtmlAttr(val: string): string {
 function escapeHtmlText(val: string): string {
   return String(val)
     .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
@@ -1008,13 +1062,17 @@ export function renderHeadTagsHtml(config: SeoHeadConfig, runtimeOrigin?: string
     MAX_DESCRIPTION_LENGTH
   );
   const canonicalUrl = resolveCanonicalUrl(config.canonicalPath, origin);
-  const imageUrl = resolveAbsoluteImageUrl(config.image, origin);
+  const { imageUrl, imageAlt, imageWidth, imageHeight } = resolveSeoImageMeta(
+    config,
+    title,
+    origin
+  );
   const ogType = config.type ?? 'website';
   const robotsValue = config.noIndex ? 'noindex,nofollow' : 'index,follow';
 
   const lines: string[] = [
     `<title>${escapeHtmlText(title)}</title>`,
-    `<meta name="robots" content="${robotsValue}" />`,
+    `<meta name="robots" content="${escapeHtmlAttr(robotsValue)}" />`,
     `<meta name="description" content="${escapeHtmlAttr(description)}" />`,
     `<link rel="canonical" href="${escapeHtmlAttr(canonicalUrl)}" />`,
   ];
@@ -1044,18 +1102,28 @@ export function renderHeadTagsHtml(config: SeoHeadConfig, runtimeOrigin?: string
   }
 
   lines.push(
-    `<meta property="og:site_name" content="${escapeHtmlAttr(SITE_NAME)}" />`,
+    `<meta property="og:site_name" content="${escapeHtmlAttr(OG_SITE_NAME)}" />`,
     `<meta property="og:locale" content="${locale === 'ur' ? 'ur_PK' : 'en_PK'}" />`,
     `<meta property="og:locale:alternate" content="${locale === 'ur' ? 'en_PK' : 'ur_PK'}" />`,
     `<meta property="og:title" content="${escapeHtmlAttr(title)}" />`,
     `<meta property="og:description" content="${escapeHtmlAttr(description)}" />`,
-    `<meta property="og:type" content="${ogType}" />`,
+    `<meta property="og:type" content="${escapeHtmlAttr(ogType)}" />`,
     `<meta property="og:url" content="${escapeHtmlAttr(canonicalUrl)}" />`,
-    `<meta property="og:image" content="${escapeHtmlAttr(imageUrl)}" />`,
+    `<meta property="og:image" content="${escapeHtmlAttr(imageUrl)}" />`
+  );
+  if (imageWidth && imageHeight) {
+    lines.push(
+      `<meta property="og:image:width" content="${escapeHtmlAttr(String(imageWidth))}" />`,
+      `<meta property="og:image:height" content="${escapeHtmlAttr(String(imageHeight))}" />`
+    );
+  }
+  lines.push(
+    `<meta property="og:image:alt" content="${escapeHtmlAttr(imageAlt)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escapeHtmlAttr(title)}" />`,
     `<meta name="twitter:description" content="${escapeHtmlAttr(description)}" />`,
-    `<meta name="twitter:image" content="${escapeHtmlAttr(imageUrl)}" />`
+    `<meta name="twitter:image" content="${escapeHtmlAttr(imageUrl)}" />`,
+    `<meta name="twitter:image:alt" content="${escapeHtmlAttr(imageAlt)}" />`
   );
 
   if (ogType === 'product' && config.productMeta) {

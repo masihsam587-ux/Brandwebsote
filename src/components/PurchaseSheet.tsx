@@ -13,6 +13,7 @@ import {
   deriveProductStockStatus,
   formatPKR,
 } from '../utils/commerce';
+import { getStockPresentation } from '../utils/stockPresentation';
 import { saveOrderReceipt } from '../services/orderReceipts';
 import { normalizeAppError } from '../services/errorHandling';
 import { canTriggerAction, createIdempotencyKey, sanitizePlainText } from '../utils/security';
@@ -50,7 +51,7 @@ export function PurchaseSheet() {
   const [turnstileToken, setTurnstileToken] = useState('');
   const idempotencyKeyRef = useRef<string>(createIdempotencyKey('ord'));
   const [referralState, setReferralState] = useState<{
-    status: 'idle' | 'checking' | 'valid' | 'invalid';
+    status: 'idle' | 'checking' | 'valid' | 'invalid' | 'self';
     sellerName?: string;
   }>({ status: 'idle' });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -62,10 +63,15 @@ export function PurchaseSheet() {
   useEffect(() => {
     if (!checkoutModalProduct) return;
     const prod = checkoutModalProduct.product;
+    const stock = deriveProductStockStatus(prod);
+    const maxAllowed =
+      typeof stock.remainingUnits !== 'number'
+        ? 20
+        : Math.max(1, Math.min(20, stock.remainingUnits));
     setStep('configure');
     setSelectedImage(prod.coverImage);
     setSelectedSize(checkoutModalProduct.size || prod.sizes?.[0] || 'One Size');
-    setQuantity(checkoutModalProduct.quantity || 1);
+    setQuantity(Math.max(1, Math.min(maxAllowed, checkoutModalProduct.quantity || 1)));
     setPaymentMethod(checkoutModalProduct.paymentMethod || 'cod');
     setFormErrors({});
     setSubmitError(null);
@@ -96,18 +102,35 @@ export function PurchaseSheet() {
     });
   }, [checkoutModalProduct, user]);
 
+  useEffect(() => {
+    if (!checkoutModalProduct || typeof window === 'undefined') return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) {
+        closeBuySheet();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [checkoutModalProduct, submitting, closeBuySheet]);
+
   // Live validate seller code when entered
   useEffect(() => {
-    const clean = referralCode.trim();
+    const clean = referralCode.trim().toUpperCase();
     if (!clean) {
       setReferralState({ status: 'idle' });
+      return;
+    }
+    if (user?.sellerCode && clean === user.sellerCode.toUpperCase()) {
+      setReferralState({ status: 'self' });
       return;
     }
     setReferralState({ status: 'checking' });
     const timer = window.setTimeout(async () => {
       try {
         const res = await orderService.validateSellerReferral(clean);
-        if (res.valid) {
+        if (res.selfReferral) {
+          setReferralState({ status: 'self' });
+        } else if (res.valid) {
           setReferralState({ status: 'valid', sellerName: res.sellerName });
         } else {
           setReferralState({ status: 'invalid' });
@@ -117,7 +140,7 @@ export function PurchaseSheet() {
       }
     }, 240);
     return () => window.clearTimeout(timer);
-  }, [referralCode]);
+  }, [referralCode, user?.sellerCode]);
 
   const activePlan = useMemo(
     () => plans.find((p) => p.id === selectedPlanId) || plans[0],
@@ -133,12 +156,12 @@ export function PurchaseSheet() {
   const { product } = checkoutModalProduct;
   const allImages = [product.coverImage, ...(product.extraImages || [])];
   const stockStatus = deriveProductStockStatus(product);
-  const sheetStockLabel =
-    stockStatus.level === 'out_of_stock'
-      ? t.product.outOfStock
-      : stockStatus.level === 'low_stock'
-      ? t.product.lowStock
-      : t.product.inStock;
+  const maxQuantity =
+    typeof stockStatus.remainingUnits !== 'number'
+      ? 20
+      : Math.max(1, Math.min(20, stockStatus.remainingUnits));
+  const clampedQuantity = Math.max(1, Math.min(maxQuantity, quantity));
+  const { label: sheetStockLabel } = getStockPresentation(stockStatus, t.product);
 
   const handleProceedToCheckout = () => {
     if (!stockStatus.isAvailable) return;
@@ -147,7 +170,7 @@ export function PurchaseSheet() {
 
   const handleAddToBag = () => {
     if (!stockStatus.isAvailable) return;
-    addItem(product, quantity, selectedSize);
+    addItem(product, clampedQuantity, selectedSize);
     showToast(`Added ${product.title} to your bag.`, 'success');
     closeBuySheet();
   };
@@ -176,17 +199,37 @@ export function PurchaseSheet() {
       return;
     }
 
-    if (paymentMethod === 'installments') {
-      const check = await orderService.validateSellerReferral(parsed.data.referralCode);
-      if (!check.valid) {
+    if (parsed.data.referralCode) {
+      if (
+        user?.sellerCode &&
+        parsed.data.referralCode.toUpperCase() === user.sellerCode.toUpperCase()
+      ) {
         setFormErrors({
-          referralCode:
-            'Seller Referral ID not found or inactive. Installment orders require a verified CA Seller ID (format CA-XXXXXX).',
+          referralCode: 'You cannot use your own Seller Referral ID on your own order.',
         });
         setSubmitStatus('error');
         window.setTimeout(() => setSubmitStatus('idle'), 500);
         return;
       }
+      const check = await orderService.validateSellerReferral(parsed.data.referralCode);
+      if (!check.valid) {
+        setFormErrors({
+          referralCode: check.selfReferral
+            ? 'You cannot use your own Seller Referral ID on your own order.'
+            : 'Seller Referral ID not found or inactive. Installment orders require a verified CA Seller ID (format CA-XXXXXX).',
+        });
+        setSubmitStatus('error');
+        window.setTimeout(() => setSubmitStatus('idle'), 500);
+        return;
+      }
+    } else if (paymentMethod === 'installments') {
+      setFormErrors({
+        referralCode:
+          'An active Seller Referral ID (format CA-XXXXXX) is required for installment plans.',
+      });
+      setSubmitStatus('error');
+      window.setTimeout(() => setSubmitStatus('idle'), 500);
+      return;
     }
 
     setFormErrors({});
@@ -199,7 +242,7 @@ export function PurchaseSheet() {
             productId: product.id,
             title: product.title,
             unitPrice: product.price,
-            quantity,
+            quantity: clampedQuantity,
             selectedSize,
             image: product.coverImage,
           },
@@ -251,7 +294,7 @@ export function PurchaseSheet() {
         aria-label={`Purchase ${product.title}`}
         className="ca-fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
       >
-        <div className="ca-sheet-up glass-sheet relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-3xl p-5 sm:rounded-2xl sm:p-7">
+        <div className="ca-sheet-up glass-sheet relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl sm:p-7 sm:pb-7">
           <div className="flex items-center justify-between gap-4 pb-2">
             <div>
               <p className="text-xs text-[var(--ca-text-muted)]">
@@ -360,20 +403,22 @@ export function PurchaseSheet() {
                     <div className="mt-1.5 inline-flex items-center rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-subtle)]/60">
                       <button
                         type="button"
+                        disabled={!stockStatus.isAvailable || clampedQuantity <= 1}
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                         aria-label="Decrease quantity"
-                        className="p-2 text-[var(--ca-text)] hover:opacity-70"
+                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-[var(--ca-text)] hover:opacity-70 disabled:opacity-40"
                       >
                         <Minus className="h-3.5 w-3.5" />
                       </button>
                       <span className="font-mono-nums min-w-[2rem] text-center text-sm font-medium">
-                        {quantity}
+                        {clampedQuantity}
                       </span>
                       <button
                         type="button"
-                        onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                        disabled={!stockStatus.isAvailable || clampedQuantity >= maxQuantity}
+                        onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
                         aria-label="Increase quantity"
-                        className="p-2 text-[var(--ca-text)] hover:opacity-70"
+                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-[var(--ca-text)] hover:opacity-70 disabled:opacity-40"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -650,7 +695,12 @@ export function PurchaseSheet() {
                 {referralState.status === 'valid' && (
                   <p className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    Verified Seller: {referralState.sellerName}
+                    Verified Seller: {referralState.sellerName || 'Active Seller'}
+                  </p>
+                )}
+                {referralState.status === 'self' && (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                    You cannot use your own Seller Referral ID.
                   </p>
                 )}
                 {referralState.status === 'invalid' && referralCode.trim() && (
@@ -727,7 +777,7 @@ export function PurchaseSheet() {
                 type="button"
                 onClick={() => {
                   closeBuySheet();
-                  navigate('/orders');
+                  navigate(localize('/orders'));
                 }}
                 className="btn-press rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-sm font-semibold text-[var(--ca-bg)]"
               >

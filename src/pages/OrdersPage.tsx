@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2, Minus, Plus, CheckCircle2, Clock, XCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { orderService } from '../api';
-import type { OrderStatus } from '../api/types';
+import type { OrderItem, OrderStatus } from '../api/types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -61,11 +61,12 @@ export function OrdersPage() {
   const idempotencyKeyRef = useRef<string>(createIdempotencyKey('bag'));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [referralState, setReferralState] = useState<{
-    status: 'idle' | 'checking' | 'valid' | 'invalid';
+    status: 'idle' | 'checking' | 'valid' | 'invalid' | 'self';
     sellerName?: string;
   }>({ status: 'idle' });
   const [submittingBag, setSubmittingBag] = useState(false);
   const [bagBtnStatus, setBagBtnStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [bagSubmitError, setBagSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -84,11 +85,17 @@ export function OrdersPage() {
       setReferralState({ status: 'idle' });
       return;
     }
+    if (user?.sellerCode && clean === user.sellerCode.toUpperCase()) {
+      setReferralState({ status: 'self' });
+      return;
+    }
     setReferralState({ status: 'checking' });
     const timer = window.setTimeout(async () => {
       try {
         const res = await orderService.validateSellerReferral(clean);
-        if (res.valid) {
+        if (res.selfReferral) {
+          setReferralState({ status: 'self' });
+        } else if (res.valid) {
           setReferralState({ status: 'valid', sellerName: res.sellerName });
         } else {
           setReferralState({ status: 'invalid' });
@@ -98,13 +105,14 @@ export function OrdersPage() {
       }
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [referralCode]);
+  }, [referralCode, user?.sellerCode]);
 
   const handleBagCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0 || submittingBag) return;
     if (!canTriggerAction('bag-checkout', 1200)) return;
     setFieldErrors({});
+    setBagSubmitError(null);
 
     const parsed = checkoutSchema.safeParse({
       fullName,
@@ -127,12 +135,26 @@ export function OrdersPage() {
     }
 
     if (parsed.data.referralCode) {
-      const refCheck = await orderService.validateSellerReferral(parsed.data.referralCode);
-      if (!refCheck.valid) {
-        setFieldErrors({ referralCode: 'Entered Seller Referral ID is invalid or inactive.' });
+      if (
+        user?.sellerCode &&
+        parsed.data.referralCode.toUpperCase() === user.sellerCode.toUpperCase()
+      ) {
+        const msg = 'You cannot use your own Seller Referral ID.';
+        setFieldErrors({ referralCode: msg });
         setBagBtnStatus('error');
         window.setTimeout(() => setBagBtnStatus('idle'), 500);
-        showToast('Entered Seller Referral ID is invalid or inactive.', 'error');
+        showToast(msg, 'error');
+        return;
+      }
+      const refCheck = await orderService.validateSellerReferral(parsed.data.referralCode);
+      if (!refCheck.valid) {
+        const msg = refCheck.selfReferral
+          ? 'You cannot use your own Seller Referral ID.'
+          : 'Entered Seller Referral ID is invalid or inactive.';
+        setFieldErrors({ referralCode: msg });
+        setBagBtnStatus('error');
+        window.setTimeout(() => setBagBtnStatus('idle'), 500);
+        showToast(msg, 'error');
         return;
       }
     }
@@ -167,8 +189,21 @@ export function OrdersPage() {
     } catch (err) {
       setBagBtnStatus('error');
       window.setTimeout(() => setBagBtnStatus('idle'), 500);
+      const partialErr = err as {
+        succeededItems?: OrderItem[];
+        partialCreatedIds?: string[];
+      };
+      if (Array.isArray(partialErr.succeededItems) && partialErr.succeededItems.length > 0) {
+        for (const placedItem of partialErr.succeededItems) {
+          removeItem(placedItem.productId, placedItem.selectedSize);
+        }
+        idempotencyKeyRef.current = createIdempotencyKey('bag');
+        await queryClient.invalidateQueries({ queryKey: ['orders', 'mine'] });
+      }
       const normalized = normalizeAppError(err, { fallbackMessage: 'Checkout failed' });
-      showToast(`${normalized.message} (Ref: ${normalized.referenceId})`, 'error');
+      const detailed = `${normalized.message} (Ref: ${normalized.referenceId})`;
+      setBagSubmitError(detailed);
+      showToast(detailed, 'error');
     } finally {
       setSubmittingBag(false);
     }
@@ -191,7 +226,7 @@ export function OrdersPage() {
             <h1 className="font-display text-3xl font-semibold text-[var(--ca-text)] sm:text-4xl">
               Bag &amp; Order Tracker
             </h1>
-            <Link to="/shop" className="text-xs font-medium text-[var(--ca-accent)] hover:underline">
+            <Link to={localize('/shop')} className="inline-flex min-h-[40px] items-center text-xs font-medium text-[var(--ca-accent)] hover:underline">
               Continue Shopping
             </Link>
           </div>
@@ -231,7 +266,7 @@ export function OrdersPage() {
                             updateQuantity(item.productId, item.selectedSize, item.quantity - 1)
                           }
                           aria-label={`Decrease ${item.title} quantity`}
-                          className="p-1.5"
+                          className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
@@ -244,7 +279,7 @@ export function OrdersPage() {
                             updateQuantity(item.productId, item.selectedSize, item.quantity + 1)
                           }
                           aria-label={`Increase ${item.title} quantity`}
-                          className="p-1.5"
+                          className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
@@ -253,7 +288,7 @@ export function OrdersPage() {
                         type="button"
                         onClick={() => removeItem(item.productId, item.selectedSize)}
                         aria-label={`Remove ${item.title}`}
-                        className="rounded-lg p-1.5 text-[var(--ca-text-muted)] hover:text-red-600"
+                        className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg text-[var(--ca-text-muted)] hover:text-red-600"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -285,6 +320,14 @@ export function OrdersPage() {
                   noValidate
                   className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"
                 >
+                  {bagSubmitError && (
+                    <div
+                      role="alert"
+                      className="sm:col-span-2 rounded-xl bg-red-500/10 px-4 py-3 text-xs text-red-600 dark:text-red-400"
+                    >
+                      {bagSubmitError}
+                    </div>
+                  )}
                   <div>
                     <input
                       required
@@ -373,7 +416,12 @@ export function OrdersPage() {
                     {referralState.status === 'valid' && (
                       <p className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
                         <ShieldCheck className="h-3.5 w-3.5" />
-                        Verified Seller: {referralState.sellerName}
+                        Verified Seller: {referralState.sellerName || 'Active Seller'}
+                      </p>
+                    )}
+                    {referralState.status === 'self' && (
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                        You cannot use your own Seller Referral ID.
                       </p>
                     )}
                     {referralState.status === 'invalid' && referralCode.trim() && (
@@ -424,8 +472,8 @@ export function OrdersPage() {
                 schedule.
               </p>
               <Link
-                to="/auth?redirect=/orders"
-                className="btn-press mt-4 inline-flex items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]"
+                to={localize('/auth?redirect=/orders')}
+                className="btn-press mt-4 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-text)] px-5 py-2.5 text-xs font-semibold text-[var(--ca-bg)]"
               >
                 Sign In to Account
               </Link>
@@ -447,7 +495,7 @@ export function OrdersPage() {
             <div className="ca-fade-in glass-panel mt-4 rounded-2xl p-8 text-center">
               <p className="text-sm text-[var(--ca-text-muted)]">No orders placed yet.</p>
               <Link
-                to="/shop"
+                to={localize('/shop')}
                 className="btn-press mt-4 inline-flex min-h-[44px] items-center rounded-xl bg-[var(--ca-surface-subtle)] px-4 py-2 text-xs font-semibold text-[var(--ca-text)]"
               >
                 Browse Storefront

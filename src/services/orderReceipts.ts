@@ -43,3 +43,14 @@ export function getOrderReceipt(orderId: string): Order | null {
   }
   return null;
 }
+
+export function clearOrderReceipts(): void {
+  memoryReceipts.clear();
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.removeItem(RECEIPT_STORAGE_KEY);
+    } catch {
+      // ignore storage errors
+    }
+  }
+}

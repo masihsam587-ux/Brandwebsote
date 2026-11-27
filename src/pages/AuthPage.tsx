@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Copy, Check, Upload, ArrowRight } from 'lucide-react';
 import { authService, storageService } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { canTriggerAction, sanitizePlainText, sanitizeUrlPath } from '../utils/security';
+import { useLocale } from '../i18n';
+import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient.js';
+import {
+  canTriggerAction,
+  copyTextToClipboard,
+  sanitizePlainText,
+  sanitizeUrlPath,
+} from '../utils/security';
 import {
   forgotPasswordSchema,
   loginSchema,
+  passwordPolicySchema,
   signupSellerSchema,
   signupUserSchema,
 } from '../utils/validation';
@@ -17,19 +25,26 @@ import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter';
 import { TurnstileField } from '../components/TurnstileField';
 
 export function AuthPage() {
-  const { login, signup } = useAuth();
+  const { login, signup, refreshSession } = useAuth();
   const { showToast } = useToast();
+  const { localize } = useLocale();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const safeRedirect = sanitizeUrlPath(searchParams.get('redirect'), '/profile');
+  const initialRecovery =
+    searchParams.get('type') === 'recovery' ||
+    (typeof window !== 'undefined' && window.location.hash.includes('type=recovery'));
 
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot' | 'update_password'>(
+    initialRecovery ? 'update_password' : 'login'
+  );
   const [accountType, setAccountType] = useState<'user' | 'seller'>('user');
   const [showPassword, setShowPassword] = useState(false);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [address, setAddress] = useState('');
@@ -48,6 +63,31 @@ export function AuthPage() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [generatedSellerId, setGeneratedSellerId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('type') === 'recovery') {
+      setMode('update_password');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      const sb = getSupabase();
+      const { data } = sb.auth.onAuthStateChange((event: string) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setMode('update_password');
+          setError(null);
+          setInfoMsg('Enter your new password below to finish resetting your account.');
+        }
+      });
+      subscription = data?.subscription;
+    } catch {
+      // Ignore if Supabase unavailable
+    }
+    return () => subscription?.unsubscribe();
+  }, []);
 
   const triggerError = (msg: string) => {
     setError(msg);
@@ -76,6 +116,32 @@ export function AuthPage() {
     setError(null);
     setInfoMsg(null);
     setSubmitStatus('idle');
+
+    if (mode === 'update_password') {
+      const parsedPwd = passwordPolicySchema.safeParse(password);
+      if (!parsedPwd.success) {
+        triggerError(parsedPwd.error.issues[0]?.message || 'Enter a stronger password.');
+        return;
+      }
+      if (password !== confirmNewPassword) {
+        triggerError('Passwords do not match.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await authService.updatePassword(parsedPwd.data);
+        await refreshSession();
+        setSubmitStatus('success');
+        setInfoMsg(res.message);
+        showToast('Password updated successfully.', 'success');
+        navigate(localize(safeRedirect), { replace: true });
+      } catch (err) {
+        triggerError(err instanceof Error ? err.message : 'Could not update password.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (mode === 'forgot') {
       const parsed = forgotPasswordSchema.safeParse({ email });
@@ -112,7 +178,7 @@ export function AuthPage() {
         });
         setSubmitStatus('success');
         showToast('Signed in to Cinematic Arts.', 'success');
-        navigate(safeRedirect, { replace: true });
+        navigate(localize(safeRedirect), { replace: true });
       } catch (err) {
         triggerError(err instanceof Error ? err.message : 'Invalid credentials.');
       } finally {
@@ -175,7 +241,7 @@ export function AuthPage() {
           showToast(`Seller account created! ID: ${createdUser.sellerCode}`, 'success');
         } else {
           showToast('Account created successfully.', 'success');
-          navigate(safeRedirect, { replace: true });
+          navigate(localize(safeRedirect), { replace: true });
         }
       } catch (err) {
         triggerError(err instanceof Error ? err.message : 'Could not create account.');
@@ -215,7 +281,7 @@ export function AuthPage() {
         showToast('Check your email to confirm your account.', 'info');
       } else {
         showToast('Account created successfully.', 'success');
-        navigate(safeRedirect, { replace: true });
+        navigate(localize(safeRedirect), { replace: true });
       }
     } catch (err) {
       triggerError(err instanceof Error ? err.message : 'Could not create account.');
@@ -252,12 +318,16 @@ export function AuthPage() {
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard?.writeText(generatedSellerId);
-                  setCopied(true);
-                  window.setTimeout(() => setCopied(false), 2000);
+                onClick={async () => {
+                  const ok = await copyTextToClipboard(generatedSellerId);
+                  if (ok) {
+                    setCopied(true);
+                    window.setTimeout(() => setCopied(false), 2000);
+                  } else {
+                    showToast(`Seller ID: ${generatedSellerId}`, 'info');
+                  }
                 }}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[var(--ca-border)] px-3.5 py-1.5 text-xs font-medium"
+                className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-[var(--ca-border)] px-3.5 py-1.5 text-xs font-medium"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? 'Copied ID' : 'Copy Seller ID'}
@@ -266,7 +336,7 @@ export function AuthPage() {
 
             <button
               type="button"
-              onClick={() => navigate(safeRedirect, { replace: true })}
+              onClick={() => navigate(localize(safeRedirect), { replace: true })}
               className="btn-press mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ca-text)] py-3 text-sm font-semibold text-[var(--ca-bg)]"
             >
               Open Seller Dashboard
@@ -289,6 +359,8 @@ export function AuthPage() {
             ? 'Signing you in...'
             : mode === 'signup'
             ? 'Creating your account...'
+            : mode === 'update_password'
+            ? 'Updating your password...'
             : 'Sending reset instructions...'
         }
       />
@@ -303,10 +375,16 @@ export function AuthPage() {
         <div className="glass-panel rounded-2xl p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4 pb-2">
             <h1 className="font-display text-3xl font-semibold text-[var(--ca-text)]">
-              {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Reset Password'}
+              {mode === 'login'
+                ? 'Sign In'
+                : mode === 'signup'
+                ? 'Create Account'
+                : mode === 'update_password'
+                ? 'Set New Password'
+                : 'Reset Password'}
             </h1>
 
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && mode !== 'update_password' && (
               <div className="flex rounded-xl bg-[var(--ca-surface-subtle)] p-1 text-xs font-semibold">
                 <button
                   type="button"
@@ -402,27 +480,29 @@ export function AuthPage() {
               </>
             )}
 
-            <div>
-              <label className="block text-xs font-medium text-[var(--ca-text-muted)]">
-                Email Address *
-              </label>
-              <input
-                type="email"
-                required
-                maxLength={120}
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm"
-              />
-            </div>
+            {mode !== 'update_password' && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--ca-text-muted)]">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  maxLength={120}
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm"
+                />
+              </div>
+            )}
 
             {mode !== 'forgot' && (
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-medium text-[var(--ca-text-muted)]">
-                    Password *
+                    {mode === 'update_password' ? 'New Password *' : 'Password *'}
                   </label>
                   {mode === 'login' && (
                     <button
@@ -438,7 +518,7 @@ export function AuthPage() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={mode === 'signup' ? 8 : 1}
+                    minLength={mode === 'signup' || mode === 'update_password' ? 8 : 1}
                     maxLength={128}
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     value={password}
@@ -455,7 +535,28 @@ export function AuthPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {mode === 'signup' && <PasswordStrengthMeter password={password} />}
+                {(mode === 'signup' || mode === 'update_password') && (
+                  <PasswordStrengthMeter password={password} />
+                )}
+              </div>
+            )}
+
+            {mode === 'update_password' && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--ca-text-muted)]">
+                  Confirm New Password *
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="mt-1 w-full rounded-xl border border-[var(--ca-border)] bg-[var(--ca-surface-solid)] px-3.5 py-2.5 text-sm"
+                />
               </div>
             )}
 
@@ -578,11 +679,11 @@ export function AuthPage() {
                 />
                 <span>
                   I agree to the{' '}
-                  <Link to="/terms" className="text-[var(--ca-text)] underline">
+                  <Link to={localize('/terms')} className="text-[var(--ca-text)] underline">
                     Terms of Service &amp; Installment Policy
                   </Link>{' '}
                   and{' '}
-                  <Link to="/privacy" className="text-[var(--ca-text)] underline">
+                  <Link to={localize('/privacy')} className="text-[var(--ca-text)] underline">
                     Privacy Policy
                   </Link>
                   .
@@ -610,10 +711,12 @@ export function AuthPage() {
                 ? accountType === 'seller'
                   ? 'Register & Generate Seller ID'
                   : 'Create Customer Account'
+                : mode === 'update_password'
+                ? 'Save New Password'
                 : 'Send Reset Instructions'}
             </CAProcessButton>
 
-            {mode === 'forgot' && (
+            {(mode === 'forgot' || mode === 'update_password') && (
               <button
                 type="button"
                 onClick={() => setMode('login')}

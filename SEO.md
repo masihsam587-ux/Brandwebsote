@@ -5,10 +5,10 @@ All technical SEO code (pre-rendered HTML for English & Urdu `/ur/` routes, `rob
 ---
 
 ## 1. Set Your Production Domain URL
-- Set both `VITE_SITE_URL` and `SITE_URL` in your production environment (`.env` / hosting dashboard) to your exact canonical domain without a trailing slash, e.g.:
+- Set both `VITE_SITE_URL` and `SITE_URL` in your production environment (`.env` / hosting dashboard) to your exact canonical URL without a trailing slash, e.g.:
   ```env
-  VITE_SITE_URL="https://cinematicarts.pk"
-  SITE_URL="https://cinematicarts.pk"
+  VITE_SITE_URL="https://cinematicartstore.netlify.app"
+  SITE_URL="https://cinematicartstore.netlify.app"
   ```
 - Rebuild after changing your domain (`npm run build`) so pre-rendered canonical tags, `hreflang` URLs, `sitemap.xml`, `robots.txt`, and `llms.txt` point to your live domain.
 

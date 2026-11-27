@@ -57,5 +57,3 @@ export function getSupabase() {
   }
   return cachedClient;
 }
-
-export const supabase = isSupabaseConfigured() ? getSupabase() : null;

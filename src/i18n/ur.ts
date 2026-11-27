@@ -114,6 +114,10 @@ export const urDictionary: TranslationDictionary = {
     relatedTitle: 'ملتی جلتی مصنوعات',
     notFoundTitle: 'پروڈکٹ دستیاب نہیں',
     notFoundDesc: 'یہ پروڈکٹ لنک غلط ہے یا آئٹم اب دستیاب نہیں رہا۔',
+    share: 'شیئر کریں',
+    copyLink: 'لنک کاپی کریں',
+    linkCopied: 'لنک کاپی ہو گیا',
+    shareWhatsApp: 'واٹس ایپ',
   },
   about: {
     heading: 'سنیماٹک آرٹس (CA) کا تعارف',

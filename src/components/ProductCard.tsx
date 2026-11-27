@@ -4,6 +4,7 @@ import { ShoppingBag, Package, Heart } from 'lucide-react';
 import type { Product } from '../api/types';
 import { useLocale } from '../i18n';
 import { deriveProductStockStatus, formatPKR } from '../utils/commerce';
+import { getStockPresentation } from '../utils/stockPresentation';
 import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
@@ -94,19 +95,10 @@ export function ProductCard({ product, onQuickBuy }: ProductCardProps) {
     else openBuySheet(product, 1, product.sizes?.[0]);
   };
 
-  const stockLabel =
-    stockStatus.level === 'out_of_stock'
-      ? t.product.outOfStock
-      : stockStatus.level === 'low_stock'
-      ? t.product.lowStock
-      : t.product.inStock;
-
-  const stockBadgeStyle =
-    stockStatus.level === 'out_of_stock'
-      ? 'bg-red-500/12 text-red-700 dark:text-red-300'
-      : stockStatus.level === 'low_stock'
-      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
-      : 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300';
+  const { label: stockLabel, badgeClass: stockBadgeStyle } = getStockPresentation(
+    stockStatus,
+    t.product
+  );
 
   return (
     <article

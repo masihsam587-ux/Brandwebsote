@@ -127,4 +127,4 @@ Disallow: /cart
 Disallow: /checkout
 Disallow: /api/
 
-Sitemap: /sitemap.xml
+Sitemap: https://cinematicartstore.netlify.app/sitemap.xml

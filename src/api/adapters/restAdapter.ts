@@ -71,6 +71,13 @@ export const restAdapter: BackendApi = {
         body: JSON.stringify({ email }),
       });
     },
+    async updatePassword(newPassword) {
+      return httpRequest<{ message: string }>('/api/auth/update-password', {
+        method: 'POST',
+        token: memoryUserToken,
+        body: JSON.stringify({ password: newPassword }),
+      });
+    },
     async logout() {
       try {
         await httpRequest('/api/auth/logout', {

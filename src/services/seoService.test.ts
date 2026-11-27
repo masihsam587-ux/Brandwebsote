@@ -230,6 +230,13 @@ test('buildProductSeoConfig produces PKR Product + SKU + BreadcrumbList with zer
   };
   assert.equal(productSchema['@type'], 'Product');
   assert.equal(productSchema.sku, 'CA-PROD-1');
+  assert.equal(
+    deriveProductSku({
+      id: 'd8da682d-5e47-4a12-9b12-89ab01234567',
+      slug: 'winter-jacket',
+    }),
+    'CA-D8DA682D'
+  );
   assert.equal(productSchema.offers.price, 8500);
   assert.equal(productSchema.offers.priceCurrency, 'PKR');
   assert.equal(productSchema.aggregateRating, undefined);
@@ -385,11 +392,65 @@ test('slug redirect registry resolves old slugs safely and prevents loops', () =
 
 test('generateLlmsTxt summarizes store, payment rules, and public URLs', () => {
   const llms = generateLlmsTxt({
-    origin: 'https://cinematicarts.pk',
+    origin: 'https://cinematicartstore.netlify.app',
     categories: SEED_CATEGORIES,
     products: SEED_PRODUCTS,
   });
   assert.ok(llms.includes('# Cinematic Arts (CA)'));
-  assert.ok(llms.includes('https://cinematicarts.pk/faq'));
+  assert.ok(llms.includes('https://cinematicartstore.netlify.app/faq'));
   assert.ok(llms.includes('Cash on Delivery'));
+});
+
+test('default OG cards use 1200x630 og-default.jpg, og:site_name Cinematic Arts, and escaped HTML attributes', () => {
+  const homeHtml = renderHeadTagsHtml(
+    getRouteSeoConfig('/', '', 'https://cinematicartstore.netlify.app'),
+    'https://cinematicartstore.netlify.app'
+  );
+  assert.ok(homeHtml.includes('<meta property="og:site_name" content="Cinematic Arts" />'));
+  assert.ok(homeHtml.includes('<meta property="og:image" content="https://cinematicartstore.netlify.app/og-default.jpg" />'));
+  assert.ok(homeHtml.includes('<meta property="og:image:width" content="1200" />'));
+  assert.ok(homeHtml.includes('<meta property="og:image:height" content="630" />'));
+  assert.ok(homeHtml.includes('<meta property="og:image:alt"'));
+  assert.ok(homeHtml.includes('<meta name="twitter:image:alt"'));
+
+  const productNoImg: Product = {
+    id: 'prod-noimg',
+    slug: 'wool-shawl-no-img',
+    title: 'Men\'s "Royal" <Winter> Shawl',
+    description: 'Warm "winter" shawl <script>alert(1)</script> shipped across Pakistan.',
+    price: 4500,
+    categoryId: 'cat-accessories',
+    categoryName: 'Accessories',
+    coverImage: '/src/assets/images/womens_unstitched_suit_1795333234539.jpg',
+    hasOwnCoverImage: false,
+    extraImages: [],
+    sizes: ['One Size'],
+    inStock: true,
+    featured: false,
+    createdAt: '2026-02-01T00:00:00.000Z',
+  };
+
+  const productHtml = renderHeadTagsHtml(
+    buildProductSeoConfig(productNoImg, 'https://cinematicartstore.netlify.app', 'en'),
+    'https://cinematicartstore.netlify.app'
+  );
+  assert.ok(productHtml.includes('<meta property="og:image" content="https://cinematicartstore.netlify.app/og-default.jpg" />'));
+  assert.ok(productHtml.includes('<meta property="og:image:width" content="1200" />'));
+  assert.ok(productHtml.includes('<meta property="og:image:height" content="630" />'));
+  assert.ok(productHtml.includes('<meta property="product:price:amount" content="4500" />'));
+  assert.ok(productHtml.includes('<meta property="product:price:currency" content="PKR" />'));
+  assert.ok(!productHtml.includes('<script>alert(1)</script>'));
+  assert.ok(!productHtml.includes('""Royal"'));
+
+  for (const privatePath of ['/admin', '/auth', '/profile', '/cart', '/checkout']) {
+    const html = renderHeadTagsHtml(
+      getRouteSeoConfig(privatePath, '', 'https://cinematicartstore.netlify.app'),
+      'https://cinematicartstore.netlify.app'
+    );
+    assert.ok(html.includes('<meta name="robots" content="noindex,nofollow" />'), privatePath);
+    assert.ok(
+      html.includes('<meta property="og:image" content="https://cinematicartstore.netlify.app/og-default.jpg" />'),
+      privatePath
+    );
+  }
 });

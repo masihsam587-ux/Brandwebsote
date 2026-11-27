@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+dist-ssr/
 coverage/
 .DS_Store
 *.log
@@ -10,3 +11,5 @@ coverage/
 *.pem
 *.key
 .playwright-cli/
+test-results/
+playwright-report/

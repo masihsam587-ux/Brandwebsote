@@ -3,12 +3,11 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { SeoHead } from '../components/SeoHead';
 import { useLocale } from '../i18n';
 import { buildBreadcrumbJsonLd } from '../services/seoService';
-import { STORE_CONFIG } from '../services/siteConfig';
+import { getRuntimeOrigin } from '../services/siteConfig';
 
 export function SizeGuidePage() {
   const { t, locale, localize } = useLocale();
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl;
+  const origin = getRuntimeOrigin();
   const canonicalPath = localize('/size-guide');
 
   return (

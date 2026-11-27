@@ -8,7 +8,7 @@ import { SeoHead } from '../components/SeoHead';
 import { FriendlyErrorState, ProductGridSkeleton } from '../components/Skeletons';
 import { useLocale } from '../i18n';
 import { buildCategorySeoConfig, formatSlugAsTitle } from '../services/seoService';
-import { STORE_CONFIG } from '../services/siteConfig';
+import { getRuntimeOrigin } from '../services/siteConfig';
 import { urlSlugSchema } from '../utils/validation';
 
 export function CategoryPage() {
@@ -57,8 +57,7 @@ export function CategoryPage() {
     );
   }, [allProducts, matchedCategory]);
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl;
+  const origin = getRuntimeOrigin();
 
   if (!slugValid || (!isLoading && !error && !matchedCategory)) {
     return (

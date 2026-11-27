@@ -45,6 +45,7 @@ export interface Product {
   categoryId: string;
   categoryName: string;
   coverImage: string;
+  hasOwnCoverImage?: boolean;
   extraImages: string[];
   sizes?: string[];
   inStock: boolean;
@@ -224,6 +225,7 @@ export interface AuthService {
   login(payload: LoginPayload): Promise<AuthSession>;
   signup(payload: SignupPayload): Promise<AuthSession>;
   requestPasswordReset(email: string): Promise<{ message: string }>;
+  updatePassword(newPassword: string): Promise<{ message: string }>;
   logout(): Promise<void>;
 }
 
@@ -268,7 +270,12 @@ export interface ProductService {
 }
 
 export interface OrderService {
-  validateSellerReferral(code: string): Promise<{ valid: boolean; sellerId?: string; sellerName?: string }>;
+  validateSellerReferral(code: string): Promise<{
+    valid: boolean;
+    sellerId?: string;
+    sellerName?: string;
+    selfReferral?: boolean;
+  }>;
   createOrder(payload: CreateOrderPayload): Promise<Order>;
   listMyOrders(): Promise<Order[]>;
 }

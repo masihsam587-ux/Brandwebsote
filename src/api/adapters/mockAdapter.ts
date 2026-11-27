@@ -30,6 +30,7 @@ import {
   calculateCommission,
   calculateInstallmentPlan,
   calculateOrderPaidSummary,
+  deriveProductStockStatus,
   generateSellerId,
   slugify,
 } from '../../utils/commerce';
@@ -240,6 +241,19 @@ export const mockAdapter: BackendApi = {
       };
     },
 
+    async updatePassword(newPassword: string) {
+      await delay();
+      const session = memorySession;
+      if (!session) throw new Error('Your recovery session expired. Request a new reset email.');
+      if (!newPassword || newPassword.length < 8) {
+        throw new Error('Password must be at least 8 characters.');
+      }
+      const salt = randomHex(12);
+      const hash = await sha256Hex(`${salt}:${newPassword}`);
+      memoryCredentials.set(session.user.id, { salt, hash });
+      return { message: 'Password updated successfully.' };
+    },
+
     async logout() {
       memorySession = null;
     },
@@ -306,6 +320,9 @@ export const mockAdapter: BackendApi = {
         (u) => u.role === 'seller' && u.isActiveSeller && u.sellerCode?.toUpperCase() === clean
       );
       if (!seller) return { valid: false };
+      if (memorySession?.user.id && seller.id === memorySession.user.id) {
+        return { valid: false, selfReferral: true };
+      }
       return { valid: true, sellerId: seller.id, sellerName: seller.name };
     },
 
@@ -327,20 +344,38 @@ export const mockAdapter: BackendApi = {
         seller = state.users.find(
           (u) => u.role === 'seller' && u.isActiveSeller && u.sellerCode?.toUpperCase() === cleanRef
         );
+        if (seller && session?.user.id && seller.id === session.user.id) {
+          throw new Error('You cannot use your own Seller Referral ID on your own order.');
+        }
       }
       if (payload.paymentMethod === 'installments' && !seller) {
         throw new Error('Installment orders require an active Seller Referral ID.');
       }
 
-      // Always recompute product prices from catalog records
+      // Always recompute product prices & enforce availability from catalog records
       const catalogMap = new Map(state.products.map((p) => [p.id, p]));
       const safeItems = payload.items.map((item) => {
         const prod = catalogMap.get(item.productId);
+        if (!prod) {
+          throw new Error('One or more ordered items are no longer available.');
+        }
+        const stock = deriveProductStockStatus(prod);
+        if (!stock.isAvailable) {
+          throw new Error(`"${prod.title}" is currently out of stock.`);
+        }
+        const maxQty =
+          typeof stock.remainingUnits === 'number' && stock.remainingUnits > 0
+            ? Math.min(20, stock.remainingUnits)
+            : 20;
+        const requestedQty = Math.max(1, Math.floor(item.quantity));
+        if (requestedQty > maxQty) {
+          throw new Error(`Only ${maxQty} unit(s) of "${prod.title}" are available right now.`);
+        }
         return {
           ...item,
-          title: prod ? prod.title : sanitizePlainText(item.title, 120),
-          unitPrice: prod ? prod.price : Math.max(0, item.unitPrice),
-          quantity: Math.min(20, Math.max(1, Math.floor(item.quantity))),
+          title: prod.title,
+          unitPrice: prod.price,
+          quantity: requestedQty,
           selectedSize: item.selectedSize ? sanitizePlainText(item.selectedSize, 32) : undefined,
         };
       });

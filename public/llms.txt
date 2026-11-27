@@ -7,7 +7,8 @@
 - Location: Peshawar, Khyber Pakhtunkhwa, Pakistan
 - Currency: PKR (Pakistani Rupee)
 - Categories: Women's Unstitched, Boys' Trousers, Jackets, Hoodies, Shirts, T-Shirts, Accessories
-- Email: masihsam587@gmail.com
+- Website: https://cinematicartstore.netlify.app/
+- Email: cinematicartsofficial.io@gmail.com
 - Phone / WhatsApp: +92-335-5329722 (03355329722)
 
 ## Payment & Shipping Summary
@@ -16,12 +17,12 @@
 - Exchanges & Returns: Unworn items and uncut unstitched fabrics may be exchanged within 7 calendar days of delivery.
 
 ## Key Public Pages (English & Urdu RTL)
-- Home: / (Urdu: /ur)
-- Shop Catalog: /shop (Urdu: /ur/shop)
-- About Store: /about (Urdu: /ur/about)
-- Installment FAQ: /faq (Urdu: /ur/faq)
-- Size Guide: /size-guide (Urdu: /ur/size-guide)
-- Shipping & Returns: /shipping (Urdu: /ur/shipping)
-- Contact & Location: /contact (Urdu: /ur/contact)
-- Terms of Service: /terms (Urdu: /ur/terms)
-- Privacy Policy: /privacy (Urdu: /ur/privacy)
+- Home: https://cinematicartstore.netlify.app/ (Urdu: https://cinematicartstore.netlify.app/ur)
+- Shop Catalog: https://cinematicartstore.netlify.app/shop (Urdu: https://cinematicartstore.netlify.app/ur/shop)
+- About Store: https://cinematicartstore.netlify.app/about (Urdu: https://cinematicartstore.netlify.app/ur/about)
+- Installment FAQ: https://cinematicartstore.netlify.app/faq (Urdu: https://cinematicartstore.netlify.app/ur/faq)
+- Size Guide: https://cinematicartstore.netlify.app/size-guide (Urdu: https://cinematicartstore.netlify.app/ur/size-guide)
+- Shipping & Returns: https://cinematicartstore.netlify.app/shipping (Urdu: https://cinematicartstore.netlify.app/ur/shipping)
+- Contact & Location: https://cinematicartstore.netlify.app/contact (Urdu: https://cinematicartstore.netlify.app/ur/contact)
+- Terms of Service: https://cinematicartstore.netlify.app/terms (Urdu: https://cinematicartstore.netlify.app/ur/terms)
+- Privacy Policy: https://cinematicartstore.netlify.app/privacy (Urdu: https://cinematicartstore.netlify.app/ur/privacy)

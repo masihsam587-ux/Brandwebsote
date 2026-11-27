@@ -11,7 +11,7 @@ import { SeoHead } from '../components/SeoHead';
 import { useLocale } from '../i18n';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { buildBreadcrumbJsonLd, buildOrganizationJsonLd } from '../services/seoService';
-import { STORE_CONFIG } from '../services/siteConfig';
+import { getRuntimeOrigin } from '../services/siteConfig';
 import { sanitizePlainText } from '../utils/security';
 
 interface ShopPageProps {
@@ -34,6 +34,16 @@ export function ShopPage({ onNetworkError }: ShopPageProps) {
   const [showCalculator, setShowCalculator] = useState(false);
 
   const gridRevealRef = useScrollReveal<HTMLDivElement>();
+
+  // Keep URL query params (?q, ?category) synced when navigating to Shop with new parameters
+  useEffect(() => {
+    const paramQ = sanitizePlainText(searchParams.get('q') || '', 80);
+    const paramCat = sanitizePlainText(searchParams.get('category') || 'all', 60) || 'all';
+    setSearch(paramQ);
+    setDebouncedSearch(paramQ);
+    setCategoryId(paramCat);
+    setPage(1);
+  }, [searchParams]);
 
   // 300ms search debounce to prevent redundant API bursts
   useEffect(() => {
@@ -96,8 +106,7 @@ export function ShopPage({ onNetworkError }: ShopPageProps) {
     [categories, categoryId]
   );
 
-  const origin =
-    typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.siteUrl;
+  const origin = getRuntimeOrigin();
   const shopSeoTitle = activeCategory
     ? `${activeCategory.name} — ${t.brand}`
     : locale === 'ur'
@@ -277,6 +286,8 @@ export function ShopPage({ onNetworkError }: ShopPageProps) {
                 onClick={() => {
                   setSearch('');
                   setDebouncedSearch('');
+                  setSort('latest');
+                  setPage(1);
                   handleCategoryChange('all');
                 }}
                 className="btn-press mt-5 min-h-[44px] rounded-xl bg-[var(--ca-surface-subtle)] px-5 py-2 text-xs font-semibold text-[var(--ca-text)] hover:opacity-85"
